@@ -29,12 +29,14 @@ import java.util.concurrent.ExecutionException;
 
 public class MainActivity extends AppCompatActivity {
 
-    ListView listaView;
-    List<ItemListView> listaItensView;
-    AdapterListView adaptador;
-    String nome = "SemNome";
+    ListView listaView; // Este e a lista de itens do layout.
+    List<ItemListView> listaItensView; // Essa e a lista de itens que contem as mensagens.
+    AdapterListView adaptador; // Essa e o adaptador da lista do layout.
+    String nome = "SemNome"; // Essa variavel contem o nome do usuario.
 
 
+    // Esse metodo adiciona uma nova mensagem. Para isso ele pega o texto e envia
+    // ao webservice solicitando uma adicao de nova mensagem.
     public void adicionarItem(View botao) {
         EditText campoTexto = (EditText)findViewById(R.id.editText);
         String textoItem = campoTexto.getText().toString();
@@ -45,7 +47,8 @@ public class MainActivity extends AppCompatActivity {
         String mensagem = textoItem;
         campoTexto.setText("");
 
-        Fuel.get("http://192.168.0.103:5000/adicionar?nome=" + nome + "&mensagem=" + mensagem).responseString(new Handler<String>() {
+        // Solicita ao webservice a adicao de uma nova mensagem.
+        Fuel.get("http://192.168.10.111:5000/adicionar?nome=" + nome + "&mensagem=" + mensagem).responseString(new Handler<String>() {
             @Override
             public void failure(Request request, Response response, FuelError error) {
                 Log.d("RESULTADO NO", response.toString());
@@ -58,6 +61,8 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    // Metodo inicial da aplicacao. Tudo comeca aqui. Configuracao do layout inicial e
+    // chamada do metodo para configurar o nome, e configuracao da lista de mensagens.
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -73,10 +78,13 @@ public class MainActivity extends AppCompatActivity {
         this.adaptador = new AdapterListView(this, this.listaItensView);
 
         this.listaView.setAdapter(this.adaptador);
+
+        // Inicia a Thread que ficara atualizando a lista.
         new obterMensagensTask().execute("");
 
     }
 
+    // Cria um dialogo para o usuario setar no nome dele na aplicacao.
     public void obterNome() {
         final EditText txtUrl = new EditText(this);
 
@@ -91,6 +99,8 @@ public class MainActivity extends AppCompatActivity {
                 .show();
     }
 
+    // Essa AsyncTask e uma Thread que roda em background na aplicacao. O loop dela e infinito
+    // e fica atualizando lista de mensagens solicitando o webservice.
     class obterMensagensTask extends AsyncTask<String, String, List> {
 
         public boolean parar = false;
@@ -100,7 +110,7 @@ public class MainActivity extends AppCompatActivity {
             parar = false;
             while (!parar) {
 
-                Fuel.get("http://192.168.0.103:5000/mensagens").responseString(new Handler<String>() {
+                Fuel.get("http://192.168.10.111:5000/mensagens").responseString(new Handler<String>() {
                     @Override
                     public void failure(Request request, Response response, FuelError error) {
                         Log.d("RESULTADO NO", response.toString());
@@ -108,6 +118,13 @@ public class MainActivity extends AppCompatActivity {
 
                     @Override
                     public void success(Request request, Response response, String data) {
+
+                        /* Obtem a posicao do itemView que o usuario esta vendo na tela atualmente. */
+                        int index = listaView.getFirstVisiblePosition();
+                        View v = listaView.getChildAt(0);
+                        int top = (v == null) ? 0 : v.getTop();
+
+                        // Cria uma nova lista e adiciona todos os itens baixados que estao no data para o listaItensView.
                         listaItensView = new ArrayList<ItemListView>();
                         JSONArray jsonarray = null;
                         boolean entrou = false;
@@ -123,11 +140,18 @@ public class MainActivity extends AppCompatActivity {
                         } catch (JSONException e) {
                             e.printStackTrace();
                         }
+
+                        // Atualiza a listView
                         adaptador = new AdapterListView(MainActivity.this, listaItensView);
                         listaView.setAdapter(adaptador);
+
+
+                        /* Volta a visualizacao da lista para o itemView que ele estava visualizando antes de atualizar. */
+                        listaView.setSelectionFromTop(index, top);
                     }
                 });
 
+                // O sleep e para deixar o loop mais devagar. A AsyncTask fica dois segundos sem fazer nada.
                 try {
                     Thread.sleep(2000);
                 } catch (InterruptedException e) {
