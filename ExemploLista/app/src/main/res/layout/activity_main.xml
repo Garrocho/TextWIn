@@ -13,27 +13,31 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:id="@+id/editText"
-        android:layout_alignParentTop="true"
+        android:layout_alignParentBottom="true"
         android:layout_alignParentLeft="true"
         android:layout_alignParentStart="true"
-        android:layout_toLeftOf="@+id/botao_adicionar_item"
-        android:layout_toStartOf="@+id/botao_adicionar_item" />
+        android:layout_toLeftOf="@+id/adicionar_item"
+        android:layout_toStartOf="@+id/adicionar_item" />
 
     <Button
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:id="@+id/botao_adicionar_item"
-        android:layout_alignParentTop="true"
-        android:layout_alignParentRight="true"
-        android:layout_alignParentEnd="true"
+        android:id="@+id/adicionar_item"
         android:onClick="adicionarItem"
-        android:text="Adicionar Item" />
+        android:text="Enviar"
+        android:layout_below="@+id/lista_itens"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentEnd="true" />
 
     <ListView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:id="@+id/lista_itens"
-        android:layout_below="@+id/botao_adicionar_item"
         android:layout_alignParentLeft="true"
-        android:layout_alignParentStart="true" />
+        android:layout_alignParentStart="true"
+        android:layout_alignParentTop="true"
+        android:layout_toStartOf="@+id/adicionar_item"
+        android:layout_above="@+id/editText"
+        android:layout_alignRight="@+id/adicionar_item"
+        android:layout_alignEnd="@+id/adicionar_item" />
 </RelativeLayout>
