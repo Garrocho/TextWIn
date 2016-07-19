@@ -60,12 +60,19 @@ def bd_adicionar_mensagem(nome, mensagem):
                  [nome, mensagem])
     db.commit()
 
+def bd_deletar_mensagem(nome, mensagem):
+    db = bd_conecta()
+    db.execute('DELETE FROM mensagens WHERE nome = ? and mensagem = ?;',
+                 [nome, mensagem])
+    db.commit()
+
+
 ###################################################
 ##### INICIO DO BLOCO DAS FUNCOES DO REST API #####
 ###################################################
 @app.route('/')
 def pagina_inicial():
-    return "<h1>Bem Vindo ao Chat</h1>Altere o projeto Listas transformando em um Chat.<br><br> <h2>Instrucoes:</h2>Para acessar as mensagens: 192.168.10.102:5000/mensagens <br> <br> Para adicionar uma mensagem: 192.168.10.102:5000/adicionar?nome=SeuNome&mensagem=SuaMensagem <br> <br> <h2>Android</h2> Exemplo de Requisicao a um site: http://stackoverflow.com/questions/3505930/make-an-http-request-with-android <br> <br> Exemplo de Parse no Json: http://stackoverflow.com/questions/18977144/how-to-parse-json-array-not-json-object-in-android"
+    return "<h1>Bem Vindo ao TextWIn</h1> <h2>Instrucoes:</h2> <b>Para acessar as mensagens: </b> 192.168.10.102:5000/mensagens <br> <br> <b> Para adicionar uma mensagem: </b> 192.168.10.102:5000/adicionar?nome=SeuNome&mensagem=SuaMensagem<br> <br> <b>Para deletar uma mensagem:</b> 192.168.10.102:5000/deletar?nome=SeuNome&mensagem=SuaMensagem"
 
 @app.route('/mensagens')
 def listar_mensagens():
@@ -81,6 +88,14 @@ def adiciona_mensagem():
     else:
         return "NAO"
 
+@app.route('/deletar')
+def deleta_mensagem():
+    print request.args
+    if 'nome' in request.args and 'mensagem' in request.args:
+        bd_deletar_mensagem(request.args['nome'], request.args['mensagem'])
+        return "SIM"
+    else:
+        return "NAO"
 
 if __name__ == "__main__":
-    app.run(host='192.168.10.106')
+    app.run(host='192.168.10.111')
