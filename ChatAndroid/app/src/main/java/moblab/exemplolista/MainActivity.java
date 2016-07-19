@@ -1,14 +1,18 @@
 package moblab.exemplolista;
 
 import android.app.AlertDialog;
+import android.content.Context;
 import android.content.DialogInterface;
+import android.content.SharedPreferences;
 import android.os.AsyncTask;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.widget.AdapterView;
 import android.widget.EditText;
 import android.widget.ListView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.github.kittinunf.fuel.Fuel;
@@ -38,27 +42,34 @@ public class MainActivity extends AppCompatActivity {
     // Esse metodo adiciona uma nova mensagem. Para isso ele pega o texto e envia
     // ao webservice solicitando uma adicao de nova mensagem.
     public void adicionarItem(View botao) {
-        EditText campoTexto = (EditText)findViewById(R.id.editText);
-        String textoItem = campoTexto.getText().toString();
 
-        ItemListView itemLista = new ItemListView();
-        itemLista.setTexto(textoItem);
+        if (nome.isEmpty()) {
+            Toast.makeText(MainActivity.this, "Você deve definir um nome antes de enviar mensagens!", Toast.LENGTH_SHORT).show();
+            obterNome();
+        }
+        else {
+            EditText campoTexto = (EditText) findViewById(R.id.editText);
+            String textoItem = campoTexto.getText().toString();
 
-        String mensagem = textoItem;
-        campoTexto.setText("");
+            ItemListView itemLista = new ItemListView();
+            itemLista.setTexto(textoItem);
 
-        // Solicita ao webservice a adicao de uma nova mensagem.
-        Fuel.get("http://192.168.10.111:5000/adicionar?nome=" + nome + "&mensagem=" + mensagem).responseString(new Handler<String>() {
-            @Override
-            public void failure(Request request, Response response, FuelError error) {
-                Log.d("RESULTADO NO", response.toString());
-            }
+            String mensagem = textoItem;
+            campoTexto.setText("");
 
-            @Override
-            public void success(Request request, Response response, String data) {
-                Log.d("RESULTADO YES", response.toString());
-            }
-        });
+            // Solicita ao webservice a adicao de uma nova mensagem.
+            Fuel.get("http://192.168.10.111:5000/adicionar?nome=" + nome + "&mensagem=" + mensagem).responseString(new Handler<String>() {
+                @Override
+                public void failure(Request request, Response response, FuelError error) {
+                    Log.d("RESULTADO NO", response.toString());
+                }
+
+                @Override
+                public void success(Request request, Response response, String data) {
+                    Log.d("RESULTADO YES", response.toString());
+                }
+            });
+        }
     }
 
     // Metodo inicial da aplicacao. Tudo comeca aqui. Configuracao do layout inicial e
@@ -79,6 +90,37 @@ public class MainActivity extends AppCompatActivity {
 
         this.listaView.setAdapter(this.adaptador);
 
+        this.listaView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
+            @Override
+            public boolean onItemLongClick(AdapterView<?> adapterView, View view, int i, long l) {
+
+                TextView textView = (TextView) view.findViewById(R.id.iten_texto);
+
+                String dados[] = textView.getText().toString().split(": ");
+
+                if (!dados[0].equalsIgnoreCase(nome)) {
+                    Toast.makeText(MainActivity.this, "Você não pode apagar as mensagens de outras pessoas.", Toast.LENGTH_SHORT).show();
+                }
+                else {
+
+                    // Solicita ao webservice apagar uma mensagem.
+                    Fuel.get("http://192.168.10.111:5000/deletar?nome=" + dados[0] + "&mensagem=" + dados[1]).responseString(new Handler<String>() {
+                        @Override
+                        public void failure(Request request, Response response, FuelError error) {
+                            Log.d("RESULTADO NO", response.toString());
+                        }
+
+                        @Override
+                        public void success(Request request, Response response, String data) {
+                            Log.d("RESULTADO YES", response.toString());
+                        }
+                    });
+                }
+                return true;
+
+            }
+        });
+
         // Inicia a Thread que ficara atualizando a lista.
         new obterMensagensTask().execute("");
 
@@ -86,17 +128,32 @@ public class MainActivity extends AppCompatActivity {
 
     // Cria um dialogo para o usuario setar no nome dele na aplicacao.
     public void obterNome() {
-        final EditText txtUrl = new EditText(this);
 
-        new AlertDialog.Builder(this)
-                .setTitle("Defina seu nome de usuário")
-                .setView(txtUrl)
-                .setPositiveButton("Salvar", new DialogInterface.OnClickListener() {
-                    public void onClick(DialogInterface dialog, int whichButton) {
-                        nome = txtUrl.getText().toString();
-                    }
-                })
-                .show();
+        SharedPreferences sharedPref = getSharedPreferences("TextWIn", Context.MODE_PRIVATE);
+        String retrievedString = sharedPref.getString("nome", "SemNome");
+
+        if (retrievedString.equalsIgnoreCase("SemNome")) {
+
+            final EditText txtUrl = new EditText(this);
+
+            new AlertDialog.Builder(this)
+                    .setTitle("Defina seu nome de usuário")
+                    .setView(txtUrl)
+                    .setPositiveButton("Salvar", new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int whichButton) {
+                            nome = txtUrl.getText().toString();
+                            SharedPreferences sharedPref = getSharedPreferences("TextWIn", Context.MODE_PRIVATE);
+                            SharedPreferences.Editor editor = sharedPref.edit();
+                            editor.putString("nome", nome);
+                            editor.commit();
+                        }
+                    })
+                    .show();
+        }
+        else {
+            nome = retrievedString;
+            Toast.makeText(MainActivity.this, "Bem Vindo ao Chat " + nome , Toast.LENGTH_SHORT).show();
+        }
     }
 
     // Essa AsyncTask e uma Thread que roda em background na aplicacao. O loop dela e infinito
