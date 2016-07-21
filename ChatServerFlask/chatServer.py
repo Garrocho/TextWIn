@@ -46,7 +46,7 @@ def bd_iniciar():
 
 def bd_obter_mensagens():
     db = bd_conecta()
-    cur = db.execute('select nome, mensagem from mensagens order by id desc')
+    cur = db.execute('select nome, mensagem from mensagens')
     column_names = [d[0] for d in cur.description]
     mensagens = []
     for row in cur:
@@ -98,4 +98,4 @@ def deleta_mensagem():
         return "NAO"
 
 if __name__ == "__main__":
-    app.run(host='192.168.10.111')
+    app.run(host='192.168.0.103')
