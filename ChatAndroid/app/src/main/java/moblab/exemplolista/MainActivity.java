@@ -56,6 +56,7 @@ public class MainActivity extends AppCompatActivity {
 
             String mensagem = textoItem;
             campoTexto.setText("");
+            ((EditText) findViewById(R.id.editText)).setHint("Escreva sua mensagem aqui...");
 
             // Solicita ao webservice a adicao de uma nova mensagem.
             Fuel.get("http://192.168.0.103:5000/adicionar?nome=" + nome + "&mensagem=" + mensagem).responseString(new Handler<String>() {
@@ -119,6 +120,8 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        ((EditText) findViewById(R.id.editText)).setHint("Escreva sua mensagem aqui...");
+
         // Inicia a Thread que ficara atualizando a lista.
         new obterMensagensTask().execute("");
 
@@ -159,6 +162,7 @@ public class MainActivity extends AppCompatActivity {
     class obterMensagensTask extends AsyncTask<String, String, List> {
 
         public boolean parar = false;
+        public boolean entrou = false;
 
         @Override
         protected List<ItemListView> doInBackground(String... params) {
@@ -201,8 +205,14 @@ public class MainActivity extends AppCompatActivity {
                         listaView.setAdapter(adaptador);
 
 
-                        /* Volta a visualizacao da lista para o itemView que ele estava visualizando antes de atualizar. */
-                        listaView.setSelectionFromTop(index, top);
+                        if (!entrou) {
+                            entrou = true;
+                            listaView.setSelectionFromTop(listaItensView.size(), top);
+                        }
+                        else {
+                            /* Volta a visualizacao da lista para o itemView que ele estava visualizando antes de atualizar. */
+                            listaView.setSelectionFromTop(index, top);
+                        }
                     }
                 });
 
