@@ -45,7 +45,8 @@ public class AdapterListView extends BaseAdapter {
             view = inflater.inflate(R.layout.lista_itens, null);
 
             itemSuporte = new ItemSuporte();
-            itemSuporte.textoView = ((TextView) view.findViewById(R.id.iten_texto));
+            itemSuporte.nomeView = ((TextView) view.findViewById(R.id.item_nome));
+            itemSuporte.textoView = ((TextView) view.findViewById(R.id.item_texto));
 
             view.setTag(itemSuporte);
         }
@@ -54,6 +55,7 @@ public class AdapterListView extends BaseAdapter {
         }
 
         ItemListView item = listaItens.get(i);
+        itemSuporte.nomeView.setText(item.getNome());
         itemSuporte.textoView.setText(item.getTexto());
 
         return view;
@@ -61,5 +63,6 @@ public class AdapterListView extends BaseAdapter {
 
     private class ItemSuporte {
         public TextView textoView;
+        public TextView nomeView;
     }
 }

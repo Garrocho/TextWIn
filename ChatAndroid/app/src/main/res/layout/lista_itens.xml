@@ -4,8 +4,20 @@
     android:layout_height="match_parent">
 
     <TextView
+        android:layout_width="70dp"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:id="@+id/item_texto"
+        android:textColor="@color/CorNome"
+        android:textStyle="bold"
+        android:textSize="12dp" />
+
+    <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:textAppearance="?android:attr/textAppearanceLarge"
-        android:id="@+id/iten_texto" />
+        android:id="@+id/item_nome"
+        android:textColor="@color/CorTexto"
+        />
+
 </LinearLayout>

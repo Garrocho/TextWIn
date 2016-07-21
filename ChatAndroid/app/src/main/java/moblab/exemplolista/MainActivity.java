@@ -58,7 +58,7 @@ public class MainActivity extends AppCompatActivity {
             campoTexto.setText("");
 
             // Solicita ao webservice a adicao de uma nova mensagem.
-            Fuel.get("http://192.168.10.111:5000/adicionar?nome=" + nome + "&mensagem=" + mensagem).responseString(new Handler<String>() {
+            Fuel.get("http://192.168.0.103:5000/adicionar?nome=" + nome + "&mensagem=" + mensagem).responseString(new Handler<String>() {
                 @Override
                 public void failure(Request request, Response response, FuelError error) {
                     Log.d("RESULTADO NO", response.toString());
@@ -84,7 +84,6 @@ public class MainActivity extends AppCompatActivity {
         this.listaView = (ListView)findViewById(R.id.lista_itens);
 
         this.listaItensView = new ArrayList<ItemListView>();
-        listaItensView.add(new ItemListView("Buscando Mensagens..."));
 
         this.adaptador = new AdapterListView(this, this.listaItensView);
 
@@ -94,17 +93,16 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public boolean onItemLongClick(AdapterView<?> adapterView, View view, int i, long l) {
 
-                TextView textView = (TextView) view.findViewById(R.id.iten_texto);
+                String nome = ((TextView) view.findViewById(R.id.item_nome)).getText().toString();
+                String mensagem = ((TextView) view.findViewById(R.id.item_texto)).getText().toString();
 
-                String dados[] = textView.getText().toString().split(": ");
-
-                if (!dados[0].equalsIgnoreCase(nome)) {
+                if (!nome.equalsIgnoreCase(nome)) {
                     Toast.makeText(MainActivity.this, "Você não pode apagar as mensagens de outras pessoas.", Toast.LENGTH_SHORT).show();
                 }
                 else {
 
                     // Solicita ao webservice apagar uma mensagem.
-                    Fuel.get("http://192.168.10.111:5000/deletar?nome=" + dados[0] + "&mensagem=" + dados[1]).responseString(new Handler<String>() {
+                    Fuel.get("http://192.168.0.103:5000/deletar?nome=" + nome + "&mensagem=" + mensagem).responseString(new Handler<String>() {
                         @Override
                         public void failure(Request request, Response response, FuelError error) {
                             Log.d("RESULTADO NO", response.toString());
@@ -167,7 +165,7 @@ public class MainActivity extends AppCompatActivity {
             parar = false;
             while (!parar) {
 
-                Fuel.get("http://192.168.10.111:5000/mensagens").responseString(new Handler<String>() {
+                Fuel.get("http://192.168.0.103:5000/mensagens").responseString(new Handler<String>() {
                     @Override
                     public void failure(Request request, Response response, FuelError error) {
                         Log.d("RESULTADO NO", response.toString());
@@ -191,7 +189,7 @@ public class MainActivity extends AppCompatActivity {
                                 JSONObject jsonobject = jsonarray.getJSONObject(i);
                                 String nome = jsonobject.getString("nome");
                                 String mensagem = jsonobject.getString("mensagem");
-                                ItemListView novoItem = new ItemListView(nome + ": " + mensagem);
+                                ItemListView novoItem = new ItemListView(nome, mensagem);
                                 listaItensView.add(novoItem);
                             }
                         } catch (JSONException e) {
