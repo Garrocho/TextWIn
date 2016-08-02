@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.SharedPreferences;
 import android.os.AsyncTask;
+import android.os.StrictMode;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -27,16 +28,96 @@ import org.json.JSONObject;
 
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.io.UnsupportedEncodingException;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.MulticastSocket;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 public class MainActivity extends AppCompatActivity {
 
-    ListView listaView; // Este e a lista de itens do layout.
+    public ListView listaView; // Este e a lista de itens do layout.
     List<ItemListView> listaItensView; // Essa e a lista de itens que contem as mensagens.
     AdapterListView adaptador; // Essa e o adaptador da lista do layout.
     String nome = "SemNome"; // Essa variavel contem o nome do usuario.
+    int ESTADO_CONEXAO = 0;
+    int tentativas;
+
+
+    public void enviarMensagem(String nome, String mensagem) {
+
+        // CONEXAO COM INTERNET OK
+        if (ESTADO_CONEXAO == 0) {
+            tentativas = 0;
+            while (tentativas < 3) {
+                // Solicita ao webservice a adicao de uma nova mensagem.
+                Fuel.get("http://192.168.0.103:5000/adicionar?nome=" + nome + "&mensagem=" + mensagem).responseString(new Handler<String>() {
+                    @Override
+                    public void failure(Request request, Response response, FuelError error) {
+                        tentativas = tentativas + 1;
+                    }
+
+                    @Override
+                    public void success(Request request, Response response, String data) {
+                        Toast.makeText(MainActivity.this, "Mensagem Enviada pela Internet!", Toast.LENGTH_SHORT).show();
+                        tentativas = 10;
+                    }
+                });
+
+            }
+            // Caso a Internet ou o Servidor Não Responda, passa o ESTADO para 1.
+            if (tentativas != 10) {
+                ESTADO_CONEXAO = 1;
+            }
+
+        }
+
+        // SEM CONEXAO COM INTERNET, VERIFICA CONEXÃO COM WIFI LOCAL
+        if (ESTADO_CONEXAO == 1) {
+
+            // Nesse caso teremos que verificar se existe conexão WIFI e abrir multicast.
+            try {
+                InetAddress addr = InetAddress.getByName("228.5.6.7");
+                DatagramSocket serverSocket = new DatagramSocket();
+
+                String msg = nome + "656789" + mensagem;
+
+                DatagramPacket msgPacket = new DatagramPacket(msg.getBytes(),
+
+                        msg.getBytes().length, addr, 6789);
+
+                serverSocket.send(msgPacket);
+                serverSocket.close();
+            }
+            catch (Exception e) {
+                e.printStackTrace();
+            }
+
+        }
+
+        // SEM CONEXAO COM INTERNET E WIFI LOCAL, VERIFICA CONEXÃO COM TETHERING
+        if (ESTADO_CONEXAO == 2) {
+
+        }
+    }
+
+    public void apagarMensagem(String nome, String mensagem) {
+        // Solicita ao webservice apagar uma mensagem.
+        Fuel.get("http://192.168.0.103:5000/deletar?nome=" + nome + "&mensagem=" + mensagem).responseString(new Handler<String>() {
+            @Override
+            public void failure(Request request, Response response, FuelError error) {
+                Log.d("RESULTADO NO", response.toString());
+            }
+
+            @Override
+            public void success(Request request, Response response, String data) {
+                Log.d("RESULTADO YES", response.toString());
+            }
+        });
+    }
 
 
     // Esse metodo adiciona uma nova mensagem. Para isso ele pega o texto e envia
@@ -56,20 +137,9 @@ public class MainActivity extends AppCompatActivity {
 
             String mensagem = textoItem;
             campoTexto.setText("");
-            ((EditText) findViewById(R.id.editText)).setHint("Escreva sua mensagem aqui...");
+            ((EditText) findViewById(R.id.editText)).setHint("Mensagem");
 
-            // Solicita ao webservice a adicao de uma nova mensagem.
-            Fuel.get("http://192.168.0.103:5000/adicionar?nome=" + nome + "&mensagem=" + mensagem).responseString(new Handler<String>() {
-                @Override
-                public void failure(Request request, Response response, FuelError error) {
-                    Log.d("RESULTADO NO", response.toString());
-                }
-
-                @Override
-                public void success(Request request, Response response, String data) {
-                    Log.d("RESULTADO YES", response.toString());
-                }
-            });
+            enviarMensagem(nome, mensagem);
         }
     }
 
@@ -79,6 +149,11 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        if (android.os.Build.VERSION.SDK_INT > 9) {
+            StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
+            StrictMode.setThreadPolicy(policy);
+        }
 
         obterNome();
 
@@ -101,26 +176,14 @@ public class MainActivity extends AppCompatActivity {
                     Toast.makeText(MainActivity.this, "Você não pode apagar as mensagens de outras pessoas.", Toast.LENGTH_SHORT).show();
                 }
                 else {
-
-                    // Solicita ao webservice apagar uma mensagem.
-                    Fuel.get("http://192.168.0.103:5000/deletar?nome=" + nome + "&mensagem=" + mensagem).responseString(new Handler<String>() {
-                        @Override
-                        public void failure(Request request, Response response, FuelError error) {
-                            Log.d("RESULTADO NO", response.toString());
-                        }
-
-                        @Override
-                        public void success(Request request, Response response, String data) {
-                            Log.d("RESULTADO YES", response.toString());
-                        }
-                    });
+                    apagarMensagem(nome, mensagem);
                 }
                 return true;
 
             }
         });
 
-        ((EditText) findViewById(R.id.editText)).setHint("Escreva sua mensagem aqui...");
+        ((EditText) findViewById(R.id.editText)).setHint("Mensagem");
 
         // Inicia a Thread que ficara atualizando a lista.
         new obterMensagensTask().execute("");
@@ -167,12 +230,14 @@ public class MainActivity extends AppCompatActivity {
         @Override
         protected List<ItemListView> doInBackground(String... params) {
             parar = false;
-            while (!parar) {
+
+            // While para Obter mensagens pela internet através do FUEL.
+            while (ESTADO_CONEXAO == 0) {
 
                 Fuel.get("http://192.168.0.103:5000/mensagens").responseString(new Handler<String>() {
                     @Override
                     public void failure(Request request, Response response, FuelError error) {
-                        Log.d("RESULTADO NO", response.toString());
+                        ESTADO_CONEXAO = 1;
                     }
 
                     @Override
@@ -222,6 +287,71 @@ public class MainActivity extends AppCompatActivity {
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
+            }
+
+            // While para obter mensagens através do multicast
+            while (ESTADO_CONEXAO == 1) {
+
+
+                try {
+                    InetAddress addr = InetAddress.getByName("228.5.6.7");
+
+
+                    MulticastSocket clientSocket = new MulticastSocket(6789);
+                    clientSocket.joinGroup(addr);
+
+                    while (true) {
+                        byte[] buf = new byte[1000];
+                        DatagramPacket msgPacket = new DatagramPacket(buf, buf.length);
+                        clientSocket.receive(msgPacket);
+
+
+                        byte data[] = msgPacket.getData();
+                        int i;
+                        for(i = 0; i < data.length; i++)
+                        {
+                            if(data[i] == '\0')
+                                break;
+                        }
+
+                        String msg;
+
+                        try {
+                            msg = new String(data, 0, i, "UTF-8");
+                        } catch (UnsupportedEncodingException e) {
+                            Log.d("erro", "UTF-8 encoding is not supported. Can't receive the incoming message.");
+                            e.printStackTrace();
+                            continue;
+                        }
+
+                        Log.d("RECEBEU", msg);
+                        String[] dados = msg.split("656789");
+
+                            ItemListView novoItem = new ItemListView(dados[0], dados[1]);
+                            listaItensView.add(novoItem);
+
+                            // Atualiza a listView
+                            adaptador = new AdapterListView(MainActivity.this, listaItensView);
+
+                            runOnUiThread(new Runnable() {
+                                public void run() {
+                                    int index = listaView.getFirstVisiblePosition();
+                                    View v = listaView.getChildAt(0);
+                                    int top = (v == null) ? 0 : v.getTop();
+                                    listaView.setAdapter(adaptador);
+                                    listaView.setSelectionFromTop(listaItensView.size(), top);
+                                }
+                            });
+
+
+                        Thread.sleep(500);
+                    }
+                }
+                catch (Exception e) {
+                    e.printStackTrace();
+                    ESTADO_CONEXAO = 2;
+                }
+
             }
             return null;
         }
