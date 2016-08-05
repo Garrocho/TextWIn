@@ -89,7 +89,14 @@ public class MainActivity extends AppCompatActivity {
 
                         msg.getBytes().length, addr, 6789);
 
-                serverSocket.send(msgPacket);
+                for (int i=0; i < 10; i++) {
+                    serverSocket.send(msgPacket);
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
                 serverSocket.close();
             }
             catch (Exception e) {
@@ -226,6 +233,7 @@ public class MainActivity extends AppCompatActivity {
 
         public boolean parar = false;
         public boolean entrou = false;
+        public List<String> msgsMC = new ArrayList<>();
 
         @Override
         protected List<ItemListView> doInBackground(String... params) {
@@ -327,6 +335,11 @@ public class MainActivity extends AppCompatActivity {
                         Log.d("RECEBEU", msg);
                         String[] dados = msg.split("656789");
 
+                        String msgMCNew = dados[0] + dados[1];
+
+                        if (!msgsMC.contains(msgMCNew)) {
+                            msgsMC.add(msgMCNew);
+
                             ItemListView novoItem = new ItemListView(dados[0], dados[1]);
                             listaItensView.add(novoItem);
 
@@ -342,6 +355,7 @@ public class MainActivity extends AppCompatActivity {
                                     listaView.setSelectionFromTop(listaItensView.size(), top);
                                 }
                             });
+                        }
 
 
                         Thread.sleep(500);
