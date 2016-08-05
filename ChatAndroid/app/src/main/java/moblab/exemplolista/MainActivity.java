@@ -43,89 +43,51 @@ public class MainActivity extends AppCompatActivity {
     List<ItemListView> listaItensView; // Essa e a lista de itens que contem as mensagens.
     AdapterListView adaptador; // Essa e o adaptador da lista do layout.
     String nome = "SemNome"; // Essa variavel contem o nome do usuario.
-    int ESTADO_CONEXAO = 0;
-    int tentativas;
+    String IP = "http://192.168.0.103:5000";
 
 
-    public void enviarMensagem(String nome, String mensagem) {
+    public void enviarMensagem(final String nome, final String mensagem) {
 
-        // CONEXAO COM INTERNET OK
-        if (ESTADO_CONEXAO == 0) {
-            tentativas = 0;
-            while (tentativas < 3) {
-                // Solicita ao webservice a adicao de uma nova mensagem.
-                Fuel.get("http://192.168.0.103:5000/adicionar?nome=" + nome + "&mensagem=" + mensagem).responseString(new Handler<String>() {
-                    @Override
-                    public void failure(Request request, Response response, FuelError error) {
-                        tentativas = tentativas + 1;
-                    }
 
-                    @Override
-                    public void success(Request request, Response response, String data) {
-                        Toast.makeText(MainActivity.this, "Mensagem Enviada pela Internet!", Toast.LENGTH_SHORT).show();
-                        tentativas = 10;
-                    }
-                });
+        Fuel.get(IP + "/adicionar?nome=" + nome + "&mensagem=" + mensagem).responseString(new Handler<String>() {
 
-            }
-            // Caso a Internet ou o Servidor Não Responda, passa o ESTADO para 1.
-            if (tentativas != 10) {
-                ESTADO_CONEXAO = 1;
-            }
-
-        }
-
-        // SEM CONEXAO COM INTERNET, VERIFICA CONEXÃO COM WIFI LOCAL
-        if (ESTADO_CONEXAO == 1) {
-
-            // Nesse caso teremos que verificar se existe conexão WIFI e abrir multicast.
-            try {
-                InetAddress addr = InetAddress.getByName("228.5.6.7");
-                DatagramSocket serverSocket = new DatagramSocket();
-
-                String msg = nome + "656789" + mensagem;
-
-                DatagramPacket msgPacket = new DatagramPacket(msg.getBytes(),
-
-                        msg.getBytes().length, addr, 6789);
-
-                for (int i=0; i < 10; i++) {
-                    serverSocket.send(msgPacket);
-                    try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                }
-                serverSocket.close();
-            }
-            catch (Exception e) {
-                e.printStackTrace();
-            }
-
-        }
-
-        // SEM CONEXAO COM INTERNET E WIFI LOCAL, VERIFICA CONEXÃO COM TETHERING
-        if (ESTADO_CONEXAO == 2) {
-
-        }
-    }
-
-    public void apagarMensagem(String nome, String mensagem) {
-        // Solicita ao webservice apagar uma mensagem.
-        Fuel.get("http://192.168.0.103:5000/deletar?nome=" + nome + "&mensagem=" + mensagem).responseString(new Handler<String>() {
+            // SEM CONEXAO COM INTERNET, VERIFICA CONEXÃO COM WIFI LOCAL
             @Override
             public void failure(Request request, Response response, FuelError error) {
-                Log.d("RESULTADO NO", response.toString());
+                // Nesse caso teremos que verificar se existe conexão WIFI e abrir multicast.
+                try {
+                    InetAddress addr = InetAddress.getByName("228.5.6.7");
+                    DatagramSocket serverSocket = new DatagramSocket();
+
+                    String msg = nome + "656789" + mensagem;
+
+                    DatagramPacket msgPacket = new DatagramPacket(msg.getBytes(),
+
+                            msg.getBytes().length, addr, 6789);
+
+                    for (int i = 0; i < 10; i++) {
+                        serverSocket.send(msgPacket);
+                        try {
+                            Thread.sleep(1000);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                    serverSocket.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                Toast.makeText(MainActivity.this, "Mensagem Enviada pelo MultiCast!", Toast.LENGTH_SHORT).show();
             }
 
+            // CONEXAO COM INTERNET OK
             @Override
             public void success(Request request, Response response, String data) {
-                Log.d("RESULTADO YES", response.toString());
+                Toast.makeText(MainActivity.this, "Mensagem Enviada pela Internet!", Toast.LENGTH_SHORT).show();
             }
         });
-    }
 
+    }
 
     // Esse metodo adiciona uma nova mensagem. Para isso ele pega o texto e envia
     // ao webservice solicitando uma adicao de nova mensagem.
@@ -134,8 +96,7 @@ public class MainActivity extends AppCompatActivity {
         if (nome.isEmpty()) {
             Toast.makeText(MainActivity.this, "Você deve definir um nome antes de enviar mensagens!", Toast.LENGTH_SHORT).show();
             obterNome();
-        }
-        else {
+        } else {
             EditText campoTexto = (EditText) findViewById(R.id.editText);
             String textoItem = campoTexto.getText().toString();
 
@@ -164,31 +125,13 @@ public class MainActivity extends AppCompatActivity {
 
         obterNome();
 
-        this.listaView = (ListView)findViewById(R.id.lista_itens);
+        this.listaView = (ListView) findViewById(R.id.lista_itens);
 
         this.listaItensView = new ArrayList<ItemListView>();
 
         this.adaptador = new AdapterListView(this, this.listaItensView);
 
         this.listaView.setAdapter(this.adaptador);
-
-        this.listaView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
-            @Override
-            public boolean onItemLongClick(AdapterView<?> adapterView, View view, int i, long l) {
-
-                String nome = ((TextView) view.findViewById(R.id.item_nome)).getText().toString();
-                String mensagem = ((TextView) view.findViewById(R.id.item_texto)).getText().toString();
-
-                if (!nome.equalsIgnoreCase(nome)) {
-                    Toast.makeText(MainActivity.this, "Você não pode apagar as mensagens de outras pessoas.", Toast.LENGTH_SHORT).show();
-                }
-                else {
-                    apagarMensagem(nome, mensagem);
-                }
-                return true;
-
-            }
-        });
 
         ((EditText) findViewById(R.id.editText)).setHint("Mensagem");
 
@@ -220,10 +163,9 @@ public class MainActivity extends AppCompatActivity {
                         }
                     })
                     .show();
-        }
-        else {
+        } else {
             nome = retrievedString;
-            Toast.makeText(MainActivity.this, "Bem Vindo ao Chat " + nome , Toast.LENGTH_SHORT).show();
+            Toast.makeText(MainActivity.this, "Bem Vindo ao Chat " + nome, Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -231,21 +173,76 @@ public class MainActivity extends AppCompatActivity {
     // e fica atualizando lista de mensagens solicitando o webservice.
     class obterMensagensTask extends AsyncTask<String, String, List> {
 
-        public boolean parar = false;
-        public boolean entrou = false;
+        public boolean continuar = true;
         public List<String> msgsMC = new ArrayList<>();
 
         @Override
         protected List<ItemListView> doInBackground(String... params) {
-            parar = false;
 
-            // While para Obter mensagens pela internet através do FUEL.
-            while (ESTADO_CONEXAO == 0) {
+            while (continuar) {
 
-                Fuel.get("http://192.168.0.103:5000/mensagens").responseString(new Handler<String>() {
+                // Obter mensagens pela internet através do FUEL.
+                Fuel.get(IP + "/mensagens").responseString(new Handler<String>() {
                     @Override
                     public void failure(Request request, Response response, FuelError error) {
-                        ESTADO_CONEXAO = 1;
+                        try {
+                            InetAddress addr = InetAddress.getByName("228.5.6.7");
+
+                            int index = listaView.getFirstVisiblePosition();
+                            View v = listaView.getChildAt(0);
+                            int top = (v == null) ? 0 : v.getTop();
+
+
+                            MulticastSocket clientSocket = new MulticastSocket(6789);
+                            clientSocket.joinGroup(addr);
+
+                            while (true) {
+                                byte[] buf = new byte[1000];
+                                DatagramPacket msgPacket = new DatagramPacket(buf, buf.length);
+                                clientSocket.receive(msgPacket);
+
+
+                                byte data[] = msgPacket.getData();
+                                int i;
+                                for (i = 0; i < data.length; i++) {
+                                    if (data[i] == '\0')
+                                        break;
+                                }
+
+                                String msg;
+
+                                try {
+                                    msg = new String(data, 0, i, "UTF-8");
+                                } catch (UnsupportedEncodingException e) {
+                                    Log.d("erro", "UTF-8 encoding is not supported. Can't receive the incoming message.");
+                                    e.printStackTrace();
+                                    continue;
+                                }
+
+                                Log.d("RECEBEU", msg);
+                                String[] dados = msg.split("656789");
+
+                                String msgMCNew = dados[0] + dados[1];
+
+                                if (!msgsMC.contains(msgMCNew)) {
+                                    msgsMC.add(msgMCNew);
+
+                                    ItemListView novoItem = new ItemListView(dados[0], dados[1]);
+                                    listaItensView.add(novoItem);
+
+                                    // Atualiza a listView
+                                    adaptador = new AdapterListView(MainActivity.this, listaItensView);
+                                    listaView.setAdapter(adaptador);
+                                    listaView.setSelectionFromTop(listaItensView.size(), top);
+
+                                    /* Volta a visualizacao da lista para o itemView que ele estava visualizando antes de atualizar. */
+                                    listaView.setSelectionFromTop(index, top);
+                                }
+                                Thread.sleep(500);
+                            }
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
                     }
 
                     @Override
@@ -259,113 +256,41 @@ public class MainActivity extends AppCompatActivity {
                         // Cria uma nova lista e adiciona todos os itens baixados que estao no data para o listaItensView.
                         listaItensView = new ArrayList<ItemListView>();
                         JSONArray jsonarray = null;
-                        boolean entrou = false;
                         try {
                             jsonarray = new JSONArray(data);
                             for (int i = 0; i < jsonarray.length(); i++) {
                                 JSONObject jsonobject = jsonarray.getJSONObject(i);
                                 String nome = jsonobject.getString("nome");
                                 String mensagem = jsonobject.getString("mensagem");
-                                ItemListView novoItem = new ItemListView(nome, mensagem);
-                                listaItensView.add(novoItem);
+
+                                String msg = nome + mensagem;
+
+                                if (!msgsMC.contains(msg)) {
+                                    msgsMC.add(msg);
+
+                                    ItemListView novoItem = new ItemListView(nome, mensagem);
+                                    listaItensView.add(novoItem);
+
+                                    // Atualiza a listView
+                                    adaptador = new AdapterListView(MainActivity.this, listaItensView);
+                                    listaView.setAdapter(adaptador);
+                                }
                             }
                         } catch (JSONException e) {
                             e.printStackTrace();
                         }
 
-                        // Atualiza a listView
-                        adaptador = new AdapterListView(MainActivity.this, listaItensView);
-                        listaView.setAdapter(adaptador);
-
-
-                        if (!entrou) {
-                            entrou = true;
-                            listaView.setSelectionFromTop(listaItensView.size(), top);
-                        }
-                        else {
-                            /* Volta a visualizacao da lista para o itemView que ele estava visualizando antes de atualizar. */
-                            listaView.setSelectionFromTop(index, top);
-                        }
+                        /* Volta a visualizacao da lista para o itemView que ele estava visualizando antes de atualizar. */
+                        listaView.setSelectionFromTop(index, top);
                     }
                 });
 
-                // O sleep e para deixar o loop mais devagar. A AsyncTask fica dois segundos sem fazer nada.
+                // O sleep e para deixar o loop mais devagar. A AsyncTask fica um segundos sem fazer nada.
                 try {
-                    Thread.sleep(2000);
+                    Thread.sleep(1000);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
-            }
-
-            // While para obter mensagens através do multicast
-            while (ESTADO_CONEXAO == 1) {
-
-
-                try {
-                    InetAddress addr = InetAddress.getByName("228.5.6.7");
-
-
-                    MulticastSocket clientSocket = new MulticastSocket(6789);
-                    clientSocket.joinGroup(addr);
-
-                    while (true) {
-                        byte[] buf = new byte[1000];
-                        DatagramPacket msgPacket = new DatagramPacket(buf, buf.length);
-                        clientSocket.receive(msgPacket);
-
-
-                        byte data[] = msgPacket.getData();
-                        int i;
-                        for(i = 0; i < data.length; i++)
-                        {
-                            if(data[i] == '\0')
-                                break;
-                        }
-
-                        String msg;
-
-                        try {
-                            msg = new String(data, 0, i, "UTF-8");
-                        } catch (UnsupportedEncodingException e) {
-                            Log.d("erro", "UTF-8 encoding is not supported. Can't receive the incoming message.");
-                            e.printStackTrace();
-                            continue;
-                        }
-
-                        Log.d("RECEBEU", msg);
-                        String[] dados = msg.split("656789");
-
-                        String msgMCNew = dados[0] + dados[1];
-
-                        if (!msgsMC.contains(msgMCNew)) {
-                            msgsMC.add(msgMCNew);
-
-                            ItemListView novoItem = new ItemListView(dados[0], dados[1]);
-                            listaItensView.add(novoItem);
-
-                            // Atualiza a listView
-                            adaptador = new AdapterListView(MainActivity.this, listaItensView);
-
-                            runOnUiThread(new Runnable() {
-                                public void run() {
-                                    int index = listaView.getFirstVisiblePosition();
-                                    View v = listaView.getChildAt(0);
-                                    int top = (v == null) ? 0 : v.getTop();
-                                    listaView.setAdapter(adaptador);
-                                    listaView.setSelectionFromTop(listaItensView.size(), top);
-                                }
-                            });
-                        }
-
-
-                        Thread.sleep(500);
-                    }
-                }
-                catch (Exception e) {
-                    e.printStackTrace();
-                    ESTADO_CONEXAO = 2;
-                }
-
             }
             return null;
         }
