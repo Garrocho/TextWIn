@@ -5,7 +5,9 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.SharedPreferences;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.StrictMode;
+import android.support.v4.os.AsyncTaskCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -21,6 +23,7 @@ import com.github.kittinunf.fuel.core.FuelError;
 import com.github.kittinunf.fuel.core.Handler;
 import com.github.kittinunf.fuel.core.Request;
 import com.github.kittinunf.fuel.core.Response;
+import com.github.kittinunf.result.Result;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -33,9 +36,14 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+import kotlin.Triple;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -44,49 +52,59 @@ public class MainActivity extends AppCompatActivity {
     AdapterListView adaptador; // Essa e o adaptador da lista do layout.
     String nome = "SemNome"; // Essa variavel contem o nome do usuario.
     String IP = "http://192.168.0.103:5000";
+    public List<String> msgsMC = new ArrayList<>();
+    public ExecutorService pool = Executors.newFixedThreadPool(100);
 
 
-    public void enviarMensagem(final String nome, final String mensagem) {
+    class EnviarMSG extends AsyncTask<String, String, List> {
 
+        public String nom, msg;
 
-        Fuel.get(IP + "/adicionar?nome=" + nome + "&mensagem=" + mensagem).responseString(new Handler<String>() {
+        public EnviarMSG(String nome, String msg) {
+            this.nom = nome;
+            this.msg = msg;
+        }
 
-            // SEM CONEXAO COM INTERNET, VERIFICA CONEXÃO COM WIFI LOCAL
-            @Override
-            public void failure(Request request, Response response, FuelError error) {
-                // Nesse caso teremos que verificar se existe conexão WIFI e abrir multicast.
-                try {
-                    InetAddress addr = InetAddress.getByName("228.5.6.7");
-                    DatagramSocket serverSocket = new DatagramSocket();
+        @Override
+        protected List<ItemListView> doInBackground(String... params) {
 
-                    String msg = nome + "656789" + mensagem;
+            Fuel.get(IP + "/adicionar?nome=" + nom + "&mensagem=" + msg).timeout(1000).responseString(new Handler<String>() {
 
-                    DatagramPacket msgPacket = new DatagramPacket(msg.getBytes(),
+                // SEM CONEXAO COM INTERNET, VERIFICA CONEXÃO COM WIFI LOCAL
+                @Override
+                public void failure(Request request, Response response, FuelError error) {
 
-                            msg.getBytes().length, addr, 6789);
+                    Log.d("ENV", "FALHA");
+                    // Nesse caso teremos que verificar se existe conexão WIFI e abrir multicast.
+                    try {
 
-                    for (int i = 0; i < 10; i++) {
-                        serverSocket.send(msgPacket);
-                        try {
-                            Thread.sleep(1000);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
+                        InetAddress addr = InetAddress.getByName("228.5.6.7");
+
+                        String mensg = nom + "656789" + msg;
+
+                        DatagramPacket msgPacket = new DatagramPacket(mensg.getBytes(),
+
+                                mensg.getBytes().length, addr, 6789);
+
+                        for (int i = 0; i < 30; i++) {
+                            pool.execute(new EnvMSGSep(msgPacket, i*500));
                         }
+                    } catch (Exception e) {
+                        e.printStackTrace();
                     }
-                    serverSocket.close();
-                } catch (Exception e) {
-                    e.printStackTrace();
+                    Toast.makeText(MainActivity.this, "Mensagem Enviada pelo MultiCast!", Toast.LENGTH_SHORT).show();
                 }
-                Toast.makeText(MainActivity.this, "Mensagem Enviada pelo MultiCast!", Toast.LENGTH_SHORT).show();
-            }
 
-            // CONEXAO COM INTERNET OK
-            @Override
-            public void success(Request request, Response response, String data) {
-                Toast.makeText(MainActivity.this, "Mensagem Enviada pela Internet!", Toast.LENGTH_SHORT).show();
-            }
-        });
+                // CONEXAO COM INTERNET OK
+                @Override
+                public void success(Request request, Response response, String data) {
+                    Log.d("ENV", "SUCESSO");
+                    Toast.makeText(MainActivity.this, "Mensagem Enviada pela Internet!", Toast.LENGTH_SHORT).show();
+                }
+            });
 
+            return null;
+        }
     }
 
     // Esse metodo adiciona uma nova mensagem. Para isso ele pega o texto e envia
@@ -107,7 +125,14 @@ public class MainActivity extends AppCompatActivity {
             campoTexto.setText("");
             ((EditText) findViewById(R.id.editText)).setHint("Mensagem");
 
-            enviarMensagem(nome, mensagem);
+            Log.d("ENV", "START TRHEAD");
+
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB) {
+                new EnviarMSG(nome, mensagem).executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+            } else {
+                new EnviarMSG(nome, mensagem).execute();
+            }
         }
     }
 
@@ -135,8 +160,7 @@ public class MainActivity extends AppCompatActivity {
 
         ((EditText) findViewById(R.id.editText)).setHint("Mensagem");
 
-        // Inicia a Thread que ficara atualizando a lista.
-        new obterMensagensTask().execute("");
+        new obterMensagensTask().execute();
 
     }
 
@@ -174,125 +198,176 @@ public class MainActivity extends AppCompatActivity {
     class obterMensagensTask extends AsyncTask<String, String, List> {
 
         public boolean continuar = true;
-        public List<String> msgsMC = new ArrayList<>();
+        public int ESTADO_CONEXAO = 10;
+
 
         @Override
         protected List<ItemListView> doInBackground(String... params) {
 
+            Log.d("ENTROU", "OBTER FUEL");
+
             while (continuar) {
 
-                // Obter mensagens pela internet através do FUEL.
-                Fuel.get(IP + "/mensagens").responseString(new Handler<String>() {
-                    @Override
-                    public void failure(Request request, Response response, FuelError error) {
-                        try {
-                            InetAddress addr = InetAddress.getByName("228.5.6.7");
+                try {
+                    Triple<Request, Response, Result<byte[],FuelError>> data = Fuel.get(IP + "/mensagens").response();
+                    Request request = data.getFirst();
+                    Response response = data.getSecond();
+                    Result<byte[],FuelError> text = data.getThird();
+                    Log.d("RESPOSTA 1", text.toString());
 
+                    byte data2[] = text.component1();
+                    int i;
+                    for (i = 0; i < data2.length; i++) {
+                        if (data2[i] == '\0')
+                            break;
+                    }
+
+                    // Cria uma nova lista e adiciona todos os itens baixados que estao no data para o listaItensView.
+                    try {
+                        JSONArray jsonarray = new JSONArray(new String(data2, 0, i, "UTF-8"));
+                        for (i = 0; i < jsonarray.length(); i++) {
+                            JSONObject jsonobject = jsonarray.getJSONObject(i);
+                            String nome = jsonobject.getString("nome");
+                            String mensagem = jsonobject.getString("mensagem");
+
+                            String msg = nome + mensagem;
+
+                            if (!msgsMC.contains(msg)) {
+                                msgsMC.add(msg);
+
+                                ItemListView novoItem = new ItemListView(nome, mensagem);
+                                listaItensView.add(novoItem);
+
+                                MainActivity.this.runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        int index = listaView.getFirstVisiblePosition();
+                                        View v = listaView.getChildAt(0);
+                                        int top = (v == null) ? 0 : v.getTop();
+
+                                        // Atualiza a listView
+                                        adaptador = new AdapterListView(MainActivity.this, listaItensView);
+                                        listaView.setAdapter(adaptador);
+                                        // listaView.setSelectionFromTop(listaItensView.size(), top);
+
+                                    /* Volta a visualizacao da lista para o itemView que ele estava visualizando antes de atualizar. */
+                                        listaView.setSelectionFromTop(index, top);
+                                    }//public void run() {
+                                });
+                            }
+                        }
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
+
+                } catch (Exception networkError) {
+                    Log.d("FALHOU", "OBTER FUEL");
+
+                    try {
+                        InetAddress addr = InetAddress.getByName("228.5.6.7");
+
+                        Log.d("TESTE", "FALHA 1");
+                        MulticastSocket clientSocket = new MulticastSocket(6789);
+                        clientSocket.joinGroup(addr);
+                        clientSocket.setSoTimeout(10000);
+
+                        Log.d("TESTE", "FALHA 2");
+                        byte[] buf = new byte[1000];
+                        DatagramPacket msgPacket = new DatagramPacket(buf, buf.length);
+                        clientSocket.receive(msgPacket);
+
+                        pool.execute(new TrataMSGRec(msgPacket));
+
+                        Log.d("TESTE", "FALHA 5");
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+                try {
+                    Thread.sleep(2000);
+                }catch (Exception e) {
+
+                }
+            }
+
+            return null;
+        }
+    }
+
+    class EnvMSGSep implements Runnable {
+        DatagramPacket pacote = null;
+        int tempo = 0;
+
+        EnvMSGSep(DatagramPacket pacote, int tempo) {
+            this.pacote = pacote;
+            this.tempo = tempo;
+        }
+
+        public void run() {
+            try {
+                Thread.sleep(tempo);
+                DatagramSocket serverSocket = new DatagramSocket();
+                serverSocket.send(pacote);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    class TrataMSGRec implements Runnable {
+        DatagramPacket pacote = null;
+
+        TrataMSGRec(DatagramPacket pacote) {
+            this.pacote = pacote;
+        }
+
+        public void run() {
+            try {
+                Log.d("TRATANDO", "MENSAGEM");
+                byte data[] = pacote.getData();
+                int i;
+                for (i = 0; i < data.length; i++) {
+                    if (data[i] == '\0')
+                        break;
+                }
+
+                String msg;
+                Log.d("TESTE", "FALHA 3");
+
+                msg = new String(data, 0, i, "UTF-8");
+
+                Log.d("RECEBEU", msg);
+                String[] dados = msg.split("656789");
+
+                String msgMCNew = dados[0] + dados[1];
+                Log.d("TESTE", "FALHA 4");
+
+                if (!msgsMC.contains(msgMCNew)) {
+                    msgsMC.add(msgMCNew);
+
+                    ItemListView novoItem = new ItemListView(dados[0], dados[1]);
+                    listaItensView.add(novoItem);
+
+                    MainActivity.this.runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
                             int index = listaView.getFirstVisiblePosition();
                             View v = listaView.getChildAt(0);
                             int top = (v == null) ? 0 : v.getTop();
 
-
-                            MulticastSocket clientSocket = new MulticastSocket(6789);
-                            clientSocket.joinGroup(addr);
-
-                            while (true) {
-                                byte[] buf = new byte[1000];
-                                DatagramPacket msgPacket = new DatagramPacket(buf, buf.length);
-                                clientSocket.receive(msgPacket);
-
-
-                                byte data[] = msgPacket.getData();
-                                int i;
-                                for (i = 0; i < data.length; i++) {
-                                    if (data[i] == '\0')
-                                        break;
-                                }
-
-                                String msg;
-
-                                try {
-                                    msg = new String(data, 0, i, "UTF-8");
-                                } catch (UnsupportedEncodingException e) {
-                                    Log.d("erro", "UTF-8 encoding is not supported. Can't receive the incoming message.");
-                                    e.printStackTrace();
-                                    continue;
-                                }
-
-                                Log.d("RECEBEU", msg);
-                                String[] dados = msg.split("656789");
-
-                                String msgMCNew = dados[0] + dados[1];
-
-                                if (!msgsMC.contains(msgMCNew)) {
-                                    msgsMC.add(msgMCNew);
-
-                                    ItemListView novoItem = new ItemListView(dados[0], dados[1]);
-                                    listaItensView.add(novoItem);
-
-                                    // Atualiza a listView
-                                    adaptador = new AdapterListView(MainActivity.this, listaItensView);
-                                    listaView.setAdapter(adaptador);
-                                    listaView.setSelectionFromTop(listaItensView.size(), top);
+                            // Atualiza a listView
+                            adaptador = new AdapterListView(MainActivity.this, listaItensView);
+                            listaView.setAdapter(adaptador);
+                            // listaView.setSelectionFromTop(listaItensView.size(), top);
 
                                     /* Volta a visualizacao da lista para o itemView que ele estava visualizando antes de atualizar. */
-                                    listaView.setSelectionFromTop(index, top);
-                                }
-                                Thread.sleep(500);
-                            }
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    }
-
-                    @Override
-                    public void success(Request request, Response response, String data) {
-
-                        /* Obtem a posicao do itemView que o usuario esta vendo na tela atualmente. */
-                        int index = listaView.getFirstVisiblePosition();
-                        View v = listaView.getChildAt(0);
-                        int top = (v == null) ? 0 : v.getTop();
-
-                        // Cria uma nova lista e adiciona todos os itens baixados que estao no data para o listaItensView.
-                        listaItensView = new ArrayList<ItemListView>();
-                        JSONArray jsonarray = null;
-                        try {
-                            jsonarray = new JSONArray(data);
-                            for (int i = 0; i < jsonarray.length(); i++) {
-                                JSONObject jsonobject = jsonarray.getJSONObject(i);
-                                String nome = jsonobject.getString("nome");
-                                String mensagem = jsonobject.getString("mensagem");
-
-                                String msg = nome + mensagem;
-
-                                if (!msgsMC.contains(msg)) {
-                                    msgsMC.add(msg);
-
-                                    ItemListView novoItem = new ItemListView(nome, mensagem);
-                                    listaItensView.add(novoItem);
-
-                                    // Atualiza a listView
-                                    adaptador = new AdapterListView(MainActivity.this, listaItensView);
-                                    listaView.setAdapter(adaptador);
-                                }
-                            }
-                        } catch (JSONException e) {
-                            e.printStackTrace();
-                        }
-
-                        /* Volta a visualizacao da lista para o itemView que ele estava visualizando antes de atualizar. */
-                        listaView.setSelectionFromTop(index, top);
-                    }
-                });
-
-                // O sleep e para deixar o loop mais devagar. A AsyncTask fica um segundos sem fazer nada.
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
+                            listaView.setSelectionFromTop(index, top);
+                        }//public void run() {
+                    });
                 }
+            } catch (Exception e) {
+                e.printStackTrace();
             }
-            return null;
         }
     }
 }
