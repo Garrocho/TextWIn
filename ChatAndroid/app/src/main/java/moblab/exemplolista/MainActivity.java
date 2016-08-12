@@ -86,8 +86,8 @@ public class MainActivity extends AppCompatActivity {
 
                                 mensg.getBytes().length, addr, 6789);
 
-                        for (int i = 0; i < 30; i++) {
-                            pool.execute(new EnvMSGSep(msgPacket, i*500));
+                        for (int i = 0; i < 60; i++) {
+                            pool.execute(new EnvMSGSep(msgPacket, i*250));
                         }
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -209,7 +209,7 @@ public class MainActivity extends AppCompatActivity {
             while (continuar) {
 
                 try {
-                    Triple<Request, Response, Result<byte[],FuelError>> data = Fuel.get(IP + "/mensagens").response();
+                    Triple<Request, Response, Result<byte[],FuelError>> data = Fuel.get(IP + "/mensagens").timeout(500).response();
                     Request request = data.getFirst();
                     Response response = data.getSecond();
                     Result<byte[],FuelError> text = data.getThird();
