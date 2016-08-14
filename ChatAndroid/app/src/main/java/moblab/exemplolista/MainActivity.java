@@ -4,15 +4,9 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.net.Uri;
-import android.net.wifi.ScanResult;
-import android.net.wifi.WifiConfiguration;
-import android.net.wifi.WifiInfo;
-import android.net.wifi.WifiManager;
 import android.os.AsyncTask;
-import android.os.BatteryManager;
 import android.os.Build;
 import android.os.StrictMode;
 import android.provider.Settings;
@@ -30,7 +24,7 @@ import com.github.kittinunf.fuel.core.Handler;
 import com.github.kittinunf.fuel.core.Request;
 import com.github.kittinunf.fuel.core.Response;
 import com.github.kittinunf.result.Result;
-import com.moblab.tethering.WifiApManager;
+import com.moblab.tethering.GerenciaRedeD2D;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -53,11 +47,10 @@ public class MainActivity extends AppCompatActivity {
     List<ItemListView> listaItensView; // Essa e a lista de itens que contem as mensagens.
     AdapterListView adaptador; // Essa e o adaptador da lista do layout.
     String nome = "SemNome"; // Essa variavel contem o nome do usuario.
-    String IP = "http://192.168.0.103:5000";
+    public final static String IP = "http://192.168.0.103:5000";
+    public static boolean INTERNET = true;
     public List<String> msgsMC = new ArrayList<>();
     public ExecutorService pool = Executors.newFixedThreadPool(100);
-    private WifiManager wifiManager = null;
-    public WifiApManager wifiApManager = null;
 
 
     class EnviarMSG extends AsyncTask<String, String, List> {
@@ -77,6 +70,8 @@ public class MainActivity extends AppCompatActivity {
                 // SEM CONEXAO COM INTERNET, VERIFICA CONEXÃO COM WIFI LOCAL
                 @Override
                 public void failure(Request request, Response response, FuelError error) {
+
+                    INTERNET = false;
 
                     Log.d("ENV", "FALHA");
                     // Nesse caso teremos que verificar se existe conexão WIFI e abrir multicast.
@@ -103,6 +98,7 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void success(Request request, Response response, String data) {
                     Log.d("ENV", "SUCESSO");
+                    INTERNET = true;
                     Toast.makeText(MainActivity.this, "Mensagem Enviada pela Internet!", Toast.LENGTH_SHORT).show();
                 }
             });
@@ -166,8 +162,9 @@ public class MainActivity extends AppCompatActivity {
 
         ((EditText) findViewById(R.id.editText)).setHint("Mensagem");
 
-        new obterMensagensTask().execute();
+        new ObterMensagensTask().execute();
 
+        new GerenciaRedeD2D(MainActivity.this).execute();
     }
 
     // Cria um dialogo para o usuario setar no nome dele na aplicacao.
@@ -199,98 +196,12 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    // Essa AsyncTask e uma Thread que roda em background na aplicacao. O loop dela e infinito
-    // e fica atualizando lista de mensagens solicitando o webservice.
-    class TrataTethering extends AsyncTask<String, String, List> {
-
-        public boolean continuar = true;
-        public int tempo_cliente = 0;
-        public WifiManager wifiMgr = null;
-
-        @Override
-        protected List<ItemListView> doInBackground(String... params) {
-
-            tempo_cliente = ((100 - (int) getBateria()) + 5) * 1000;
-
-            while (continuar) {
-
-                long startTime = System.currentTimeMillis();
-
-                while ((System.currentTimeMillis() - startTime) < tempo_cliente) {
-
-                    if (wifiMgr == null)
-                        wifiMgr = (WifiManager) MainActivity.this.getSystemService(Context.WIFI_SERVICE);
-
-                    if (!wifiMgr.isWifiEnabled())
-                        wifiMgr.setWifiEnabled(true);
-
-                    WifiInfo wifiInfo = wifiMgr.getConnectionInfo();
-                    String connected_net = (wifiInfo.getSSID()).toString();
-
-                    if (connected_net != null) {
-                        if (connected_net.equalsIgnoreCase("<unknown ssid>")) {
-                            wifiMgr.startScan();
-
-                            List<ScanResult> apList = wifiMgr.getScanResults();
-
-                            WifiConfiguration tmpConfig = null;
-
-                            for (ScanResult result : apList) {
-                                if (result.SSID.contains("TextWIn")) {
-                                    tmpConfig = new WifiConfiguration();
-                                    tmpConfig.BSSID = result.BSSID;
-                                    tmpConfig.SSID = "\"" + result.SSID + "\"";
-                                    tmpConfig.priority = 1;
-                                    tmpConfig.preSharedKey = "\"" + "123456789" + "\"";
-                                    tmpConfig.status = WifiConfiguration.Status.ENABLED;
-                                    tmpConfig.hiddenSSID = true;
-                                    tmpConfig.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
-                                    tmpConfig.allowedProtocols.set(WifiConfiguration.Protocol.WPA);
-                                    tmpConfig.allowedAuthAlgorithms.set(WifiConfiguration.AuthAlgorithm.OPEN);
-                                }
-                            }
-
-                            if (tmpConfig != null) {
-                                int netID = wifiManager.addNetwork(tmpConfig);
-                                wifiManager.enableNetwork(netID, true);
-                            }
-                        }
-                    }
-
-                }
-
-                if (wifiApManager == null) {
-                    wifiApManager = new WifiApManager(MainActivity.this);
-                    wifiApManager.setWifiApEnabled(null, true);
-                }
-
-
-                try {
-                    Thread.sleep(2000);
-                } catch (Exception e) {
-
-                }
-            }
-
-            return null;
-        }
-    }
-
-    public float getBateria() {
-        IntentFilter ifilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
-        Intent batteryStatus = MainActivity.this.registerReceiver(null, ifilter);
-        int level = batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
-        int scale = batteryStatus.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
-        return (level / (float) scale) * 100;
-    }
 
     // Essa AsyncTask e uma Thread que roda em background na aplicacao. O loop dela e infinito
     // e fica atualizando lista de mensagens solicitando o webservice.
-    class obterMensagensTask extends AsyncTask<String, String, List> {
+    class ObterMensagensTask extends AsyncTask<String, String, List> {
 
         public boolean continuar = true;
-        public int ESTADO_CONEXAO = 10;
-
 
         @Override
         protected List<ItemListView> doInBackground(String... params) {
@@ -305,6 +216,7 @@ public class MainActivity extends AppCompatActivity {
                     Response response = data.getSecond();
                     Result<byte[], FuelError> text = data.getThird();
                     Log.d("RESPOSTA 1", text.toString());
+                    INTERNET = true;
 
                     byte data2[] = text.component1();
                     int i;
@@ -353,27 +265,7 @@ public class MainActivity extends AppCompatActivity {
 
                 } catch (Exception networkError) {
                     Log.d("FALHOU", "OBTER FUEL");
-
-                    WifiManager wifiMgr = (WifiManager) MainActivity.this.getSystemService(Context.WIFI_SERVICE);
-
-                    // Verifica se o Wifi Esta Abilitado. Se não estiver, habilita ele.
-                    if (!wifiMgr.isWifiEnabled()) {
-                        wifiMgr.setWifiEnabled(true);
-                    }
-
-                    WifiInfo wifiInfo = wifiMgr.getConnectionInfo();
-                    String connected_net = (wifiInfo.getSSID()).toString();
-
-                    Log.d("TESTANDOOOO", connected_net);
-
-                    // Verifica se esta conectado em algum wifi local.
-                    if (connected_net.equalsIgnoreCase("<unknown ssid>")) {
-                        if (wifiApManager == null) {
-                            Log.d("TESTANDOOOOOO", "ENTREI AQI");
-                            wifiApManager = new WifiApManager(MainActivity.this);
-                            wifiApManager.setWifiApEnabled(null, true);
-                        }
-                    }
+                    INTERNET = false;
 
                     try {
                         InetAddress addr = InetAddress.getByName("228.5.6.7");
