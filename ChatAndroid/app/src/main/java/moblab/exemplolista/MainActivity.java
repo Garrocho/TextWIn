@@ -3,19 +3,25 @@ package moblab.exemplolista;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.net.Uri;
+import android.net.wifi.ScanResult;
+import android.net.wifi.WifiConfiguration;
+import android.net.wifi.WifiInfo;
+import android.net.wifi.WifiManager;
 import android.os.AsyncTask;
+import android.os.BatteryManager;
 import android.os.Build;
 import android.os.StrictMode;
-import android.support.v4.os.AsyncTaskCompat;
+import android.provider.Settings;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
-import android.widget.AdapterView;
 import android.widget.EditText;
 import android.widget.ListView;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import com.github.kittinunf.fuel.Fuel;
@@ -24,22 +30,18 @@ import com.github.kittinunf.fuel.core.Handler;
 import com.github.kittinunf.fuel.core.Request;
 import com.github.kittinunf.fuel.core.Response;
 import com.github.kittinunf.result.Result;
+import com.moblab.tethering.WifiApManager;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.io.UnsupportedEncodingException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -54,6 +56,8 @@ public class MainActivity extends AppCompatActivity {
     String IP = "http://192.168.0.103:5000";
     public List<String> msgsMC = new ArrayList<>();
     public ExecutorService pool = Executors.newFixedThreadPool(100);
+    private WifiManager wifiManager = null;
+    public WifiApManager wifiApManager = null;
 
 
     class EnviarMSG extends AsyncTask<String, String, List> {
@@ -87,7 +91,7 @@ public class MainActivity extends AppCompatActivity {
                                 mensg.getBytes().length, addr, 6789);
 
                         for (int i = 0; i < 60; i++) {
-                            pool.execute(new EnvMSGSep(msgPacket, i*250));
+                            pool.execute(new EnvMSGSep(msgPacket, i * 250));
                         }
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -143,6 +147,8 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        openAndroidPermissionsMenu();
+
         if (android.os.Build.VERSION.SDK_INT > 9) {
             StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
             StrictMode.setThreadPolicy(policy);
@@ -195,6 +201,91 @@ public class MainActivity extends AppCompatActivity {
 
     // Essa AsyncTask e uma Thread que roda em background na aplicacao. O loop dela e infinito
     // e fica atualizando lista de mensagens solicitando o webservice.
+    class TrataTethering extends AsyncTask<String, String, List> {
+
+        public boolean continuar = true;
+        public int tempo_cliente = 0;
+        public WifiManager wifiMgr = null;
+
+        @Override
+        protected List<ItemListView> doInBackground(String... params) {
+
+            tempo_cliente = ((100 - (int) getBateria()) + 5) * 1000;
+
+            while (continuar) {
+
+                long startTime = System.currentTimeMillis();
+
+                while ((System.currentTimeMillis() - startTime) < tempo_cliente) {
+
+                    if (wifiMgr == null)
+                        wifiMgr = (WifiManager) MainActivity.this.getSystemService(Context.WIFI_SERVICE);
+
+                    if (!wifiMgr.isWifiEnabled())
+                        wifiMgr.setWifiEnabled(true);
+
+                    WifiInfo wifiInfo = wifiMgr.getConnectionInfo();
+                    String connected_net = (wifiInfo.getSSID()).toString();
+
+                    if (connected_net != null) {
+                        if (connected_net.equalsIgnoreCase("<unknown ssid>")) {
+                            wifiMgr.startScan();
+
+                            List<ScanResult> apList = wifiMgr.getScanResults();
+
+                            WifiConfiguration tmpConfig = null;
+
+                            for (ScanResult result : apList) {
+                                if (result.SSID.contains("TextWIn")) {
+                                    tmpConfig = new WifiConfiguration();
+                                    tmpConfig.BSSID = result.BSSID;
+                                    tmpConfig.SSID = "\"" + result.SSID + "\"";
+                                    tmpConfig.priority = 1;
+                                    tmpConfig.preSharedKey = "\"" + "123456789" + "\"";
+                                    tmpConfig.status = WifiConfiguration.Status.ENABLED;
+                                    tmpConfig.hiddenSSID = true;
+                                    tmpConfig.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
+                                    tmpConfig.allowedProtocols.set(WifiConfiguration.Protocol.WPA);
+                                    tmpConfig.allowedAuthAlgorithms.set(WifiConfiguration.AuthAlgorithm.OPEN);
+                                }
+                            }
+
+                            if (tmpConfig != null) {
+                                int netID = wifiManager.addNetwork(tmpConfig);
+                                wifiManager.enableNetwork(netID, true);
+                            }
+                        }
+                    }
+
+                }
+
+                if (wifiApManager == null) {
+                    wifiApManager = new WifiApManager(MainActivity.this);
+                    wifiApManager.setWifiApEnabled(null, true);
+                }
+
+
+                try {
+                    Thread.sleep(2000);
+                } catch (Exception e) {
+
+                }
+            }
+
+            return null;
+        }
+    }
+
+    public float getBateria() {
+        IntentFilter ifilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+        Intent batteryStatus = MainActivity.this.registerReceiver(null, ifilter);
+        int level = batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+        int scale = batteryStatus.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
+        return (level / (float) scale) * 100;
+    }
+
+    // Essa AsyncTask e uma Thread que roda em background na aplicacao. O loop dela e infinito
+    // e fica atualizando lista de mensagens solicitando o webservice.
     class obterMensagensTask extends AsyncTask<String, String, List> {
 
         public boolean continuar = true;
@@ -209,10 +300,10 @@ public class MainActivity extends AppCompatActivity {
             while (continuar) {
 
                 try {
-                    Triple<Request, Response, Result<byte[],FuelError>> data = Fuel.get(IP + "/mensagens").timeout(500).response();
+                    Triple<Request, Response, Result<byte[], FuelError>> data = Fuel.get(IP + "/mensagens").timeout(500).response();
                     Request request = data.getFirst();
                     Response response = data.getSecond();
-                    Result<byte[],FuelError> text = data.getThird();
+                    Result<byte[], FuelError> text = data.getThird();
                     Log.d("RESPOSTA 1", text.toString());
 
                     byte data2[] = text.component1();
@@ -263,6 +354,27 @@ public class MainActivity extends AppCompatActivity {
                 } catch (Exception networkError) {
                     Log.d("FALHOU", "OBTER FUEL");
 
+                    WifiManager wifiMgr = (WifiManager) MainActivity.this.getSystemService(Context.WIFI_SERVICE);
+
+                    // Verifica se o Wifi Esta Abilitado. Se não estiver, habilita ele.
+                    if (!wifiMgr.isWifiEnabled()) {
+                        wifiMgr.setWifiEnabled(true);
+                    }
+
+                    WifiInfo wifiInfo = wifiMgr.getConnectionInfo();
+                    String connected_net = (wifiInfo.getSSID()).toString();
+
+                    Log.d("TESTANDOOOO", connected_net);
+
+                    // Verifica se esta conectado em algum wifi local.
+                    if (connected_net.equalsIgnoreCase("<unknown ssid>")) {
+                        if (wifiApManager == null) {
+                            Log.d("TESTANDOOOOOO", "ENTREI AQI");
+                            wifiApManager = new WifiApManager(MainActivity.this);
+                            wifiApManager.setWifiApEnabled(null, true);
+                        }
+                    }
+
                     try {
                         InetAddress addr = InetAddress.getByName("228.5.6.7");
 
@@ -285,13 +397,19 @@ public class MainActivity extends AppCompatActivity {
                 }
                 try {
                     Thread.sleep(2000);
-                }catch (Exception e) {
+                } catch (Exception e) {
 
                 }
             }
 
             return null;
         }
+    }
+
+    private void openAndroidPermissionsMenu() {
+        Intent intent = new Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS);
+        intent.setData(Uri.parse("package:" + MainActivity.this.getPackageName()));
+        startActivity(intent);
     }
 
     class EnvMSGSep implements Runnable {
