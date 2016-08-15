@@ -143,7 +143,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        openAndroidPermissionsMenu();
+        checkSystemWritePermission();
 
         if (android.os.Build.VERSION.SDK_INT > 9) {
             StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
@@ -164,7 +164,8 @@ public class MainActivity extends AppCompatActivity {
 
         new ObterMensagensTask().execute();
 
-        new GerenciaRedeD2D(MainActivity.this).execute();
+        GerenciaRedeD2D gerenciaRedeD2D = new GerenciaRedeD2D(MainActivity.this);
+        gerenciaRedeD2D.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
     }
 
     // Cria um dialogo para o usuario setar no nome dele na aplicacao.
@@ -298,10 +299,26 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void openAndroidPermissionsMenu() {
-        Intent intent = new Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS);
-        intent.setData(Uri.parse("package:" + MainActivity.this.getPackageName()));
-        startActivity(intent);
+    private boolean checkSystemWritePermission() {
+        boolean retVal = true;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            retVal = Settings.System.canWrite(this);
+            if(!retVal){
+                MainActivity.this.runOnUiThread(new Runnable() {
+                    public void run() {
+                        Toast.makeText(MainActivity.this, "Permita a Aplicação Alterar o Estado da Sua Rede!", Toast.LENGTH_LONG).show();
+                    }
+                });
+
+                Intent intent = new Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS);
+                intent.setData(Uri.parse("package:" + MainActivity.this.getPackageName()));
+                startActivity(intent);
+            }
+        }
+
+
+
+        return retVal;
     }
 
     class EnvMSGSep implements Runnable {

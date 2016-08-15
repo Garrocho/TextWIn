@@ -10,6 +10,7 @@ import android.net.wifi.WifiManager;
 import android.os.AsyncTask;
 import android.os.BatteryManager;
 import android.util.Log;
+import android.widget.Toast;
 
 import com.github.kittinunf.fuel.Fuel;
 import com.github.kittinunf.fuel.core.FuelError;
@@ -44,23 +45,31 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
 
     public GerenciaRedeD2D(Context contexto) {
         this.contexto = contexto;
+        Log.d("D2D", "CRIANDO");
     }
 
     @Override
     protected List<ItemListView> doInBackground(String... params) {
 
+        Log.d("D2D", "ENTROU");
+
         // A AsyncTask fica sempre executando. Posteriormente, essa Thread terá que ser um Service.
         while (continuar) {
+
+            Log.d("D2D", "INTERNET = " + String.valueOf(MainActivity.INTERNET));
 
             // Verifica primeiro se o dispositivo tem acesso a internet.
             if (!MainActivity.INTERNET) {
 
-                tempo_cliente = ((100 - (int) getBateria()) + 5) * 1000;
+                tempo_cliente = ((100 - (int) getBateria()) + 5) * 250;
                 long startTime = System.currentTimeMillis();
 
+                Log.d("D2D", "TEMPO CLIENTE - " + String.valueOf(tempo_cliente));
 
                 // Começa a Buscar as redes TextWin de acordo com o tempo gerado pelo nivel de bateria.
                 while ((System.currentTimeMillis() - startTime) < tempo_cliente) {
+
+                    Log.d("D2D", "CLIENTE PESQUISANDO - " + String.valueOf(System.currentTimeMillis() - startTime));
 
                     if (wifiManager == null)
                         wifiManager = (WifiManager) contexto.getSystemService(Context.WIFI_SERVICE);
@@ -71,8 +80,13 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
                     WifiInfo wifiInfo = wifiManager.getConnectionInfo();
                     String connected_net = (wifiInfo.getSSID()).toString();
 
+                    Log.d("D2D", connected_net);
+
                     if (connected_net != null) {
-                        if (connected_net.equalsIgnoreCase("<unknown ssid>")) {
+                        if (connected_net.equalsIgnoreCase("<unknown ssid>") || connected_net.equalsIgnoreCase("") || connected_net.equalsIgnoreCase("0x")) {
+
+                            Log.d("D2D", "CLIENTE NAO ENCONTRADO WIFI - START SCAN");
+
                             wifiManager.startScan();
 
                             List<ScanResult> apList = wifiManager.getScanResults();
@@ -88,7 +102,7 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
                                     tmpConfig.priority = 1;
                                     tmpConfig.preSharedKey = "\"" + "123456789" + "\"";
                                     tmpConfig.status = WifiConfiguration.Status.ENABLED;
-                                    tmpConfig.hiddenSSID = true;
+                                    tmpConfig.hiddenSSID = false;
                                     tmpConfig.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
                                     tmpConfig.allowedProtocols.set(WifiConfiguration.Protocol.WPA);
                                     tmpConfig.allowedAuthAlgorithms.set(WifiConfiguration.AuthAlgorithm.OPEN);
@@ -98,26 +112,34 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
                             // Se encontrar uma rede TextWIn, se conecta a ela.
                             if (tmpConfig != null) {
                                 netID = wifiManager.addNetwork(tmpConfig);
-                                wifiManager.enableNetwork(netID, true);
+
+                                if (wifiManager.enableNetwork(netID, true)) {
+                                    Toast.makeText(contexto, "Conectado a Rede WiFi " + tmpConfig.SSID, Toast.LENGTH_SHORT).show();
+                                }
                             }
                         }
-                    }
-
-                    // Caso o dispositivo esteja conectado a uma rede wifi ou ao Tethering, continua como cliente.
-                    else {
-                        startTime = System.currentTimeMillis();
+                        // Caso o dispositivo esteja conectado a uma rede wifi ou ao Tethering, continua como cliente.
+                        else {
+                            Log.d("D2D", "CLIENTE ENCONTRADO WIFI");
+                            startTime = System.currentTimeMillis();
+                        }
                     }
                 }
+
+                Log.d("D2D", "HABILITANDO TETHERING WIFI");
 
                 if (netID != -8888) {
                     wifiManager.removeNetwork(netID);
-                    netID = 0;
+                    netID = -8888;
                 }
 
                 // Estourou o tempo de busca de redes, neste caso o tethering é ativado.
+                tempo_cliente = ((100 - (int) getBateria()) + 5) * 1000;
                 startTime = System.currentTimeMillis();
 
                 while ((System.currentTimeMillis() - startTime) < tempo_cliente) {
+
+                    Log.d("D2D", "TETHRING COMEÇANDO");
 
                     if (TetheringManager == null)
                         TetheringManager = new WifiApManager(contexto);
@@ -130,12 +152,13 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
                         ArrayList<ClientScanResult> clientsAP = getClientsTethering();
 
                         // Se houver clientes conectados, continua como Tethering.
-                        if (clientsAP != null || !clientsAP.isEmpty()) {
+                        if (clientsAP != null && !clientsAP.isEmpty()) {
                             startTime = System.currentTimeMillis();
                         }
                     }
 
                 }
+                TetheringManager.setWifiApEnabled(null, false);
             }
             else {
                 try {

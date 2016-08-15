@@ -35,7 +35,7 @@ public class WifiApManager {
             WifiConfiguration conf = new WifiConfiguration();
             conf.SSID = randomName();
             conf.preSharedKey = "123456789";
-            conf.hiddenSSID = true;
+            conf.hiddenSSID = false;
             conf.status = WifiConfiguration.Status.ENABLED;
             conf.priority = 1;
             conf.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
@@ -45,7 +45,7 @@ public class WifiApManager {
             Method method = mWifiManager.getClass().getMethod("setWifiApEnabled", WifiConfiguration.class, boolean.class);
             return (Boolean) method.invoke(mWifiManager, conf, enabled);
         } catch (Exception e) {
-            Log.e(this.getClass().toString(), "CHARLES GARROCHO", e);
+            Log.e(this.getClass().toString(), "TextWIn", e);
             return false;
         }
     }
