@@ -89,18 +89,21 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
 
                             wifiManager.startScan();
 
+                            dormir(2000);
+
                             List<ScanResult> apList = wifiManager.getScanResults();
 
                             WifiConfiguration tmpConfig = null;
 
                             // Procura uma rede TextWIn dentro das redes wifi escaneadas.
                             for (ScanResult result : apList) {
-                                if (result.SSID.contains("TextWIn")) {
+                                if (result.SSID.contains("Ensino33")) {
+                                    Log.d("TEXTWIN", "ENCONTROU A REDE - " + result.SSID);
                                     tmpConfig = new WifiConfiguration();
                                     tmpConfig.BSSID = result.BSSID;
                                     tmpConfig.SSID = "\"" + result.SSID + "\"";
                                     tmpConfig.priority = 1;
-                                    tmpConfig.preSharedKey = "\"" + "123456789" + "\"";
+                                    tmpConfig.preSharedKey = "\"" + "3duc4c40" + "\"";
                                     tmpConfig.status = WifiConfiguration.Status.ENABLED;
                                     tmpConfig.hiddenSSID = false;
                                     tmpConfig.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
@@ -114,13 +117,15 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
                                 netID = wifiManager.addNetwork(tmpConfig);
 
                                 if (wifiManager.enableNetwork(netID, true)) {
-                                    Toast.makeText(contexto, "Conectado a Rede WiFi " + tmpConfig.SSID, Toast.LENGTH_SHORT).show();
+                                    Log.d("TEXTWIN - D2D", "Conectado a Rede WiFi " + tmpConfig.SSID);
                                 }
+                                dormir(2000);
                             }
                         }
                         // Caso o dispositivo esteja conectado a uma rede wifi ou ao Tethering, continua como cliente.
                         else {
-                            Log.d("D2D", "CLIENTE ENCONTRADO WIFI");
+                            Log.d("TEXTWIN", "CONECTADO A REDE - " + connected_net);
+                            dormir(1000);
                             startTime = System.currentTimeMillis();
                         }
                     }
@@ -144,8 +149,10 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
                     if (TetheringManager == null)
                         TetheringManager = new WifiApManager(contexto);
 
-                    if (!TetheringManager.isWifiApEnabled())
+                    if (!TetheringManager.isWifiApEnabled()) {
                         TetheringManager.setWifiApEnabled(null, true);
+                        dormir(2000);
+                    }
 
                     // Busca os clientes conectados ao Tethering.
                     if (TetheringManager.isWifiApEnabled()) {
@@ -153,6 +160,7 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
 
                         // Se houver clientes conectados, continua como Tethering.
                         if (clientsAP != null && !clientsAP.isEmpty()) {
+                            dormir(1000);
                             startTime = System.currentTimeMillis();
                         }
                     }
@@ -161,15 +169,19 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
                 TetheringManager.setWifiApEnabled(null, false);
             }
             else {
-                try {
-                    Thread.sleep(2000);
-                }catch (Exception e) {
-                    e.printStackTrace();
-                }
+                dormir(2000);
             }
         }
 
         return null;
+    }
+
+    public void dormir(int tempo) {
+        try {
+            Thread.sleep(tempo);
+        }catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public ArrayList<ClientScanResult> getClientsTethering() {

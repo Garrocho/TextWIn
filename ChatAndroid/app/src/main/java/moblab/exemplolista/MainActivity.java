@@ -1,10 +1,13 @@
 package moblab.exemplolista;
 
+import android.Manifest;
+import android.annotation.TargetApi;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Build;
@@ -51,6 +54,8 @@ public class MainActivity extends AppCompatActivity {
     public static boolean INTERNET = true;
     public List<String> msgsMC = new ArrayList<>();
     public ExecutorService pool = Executors.newFixedThreadPool(100);
+    private static final int PERMISSION_REQUEST_COARSE_LOCATION = 1;
+    private static final int PERMISSION_REQUEST_FINE_LOCATION = 2;
 
 
     class EnviarMSG extends AsyncTask<String, String, List> {
@@ -162,10 +167,43 @@ public class MainActivity extends AppCompatActivity {
 
         ((EditText) findViewById(R.id.editText)).setHint("Mensagem");
 
+        checarPermissoes();
+
         new ObterMensagensTask().execute();
 
         GerenciaRedeD2D gerenciaRedeD2D = new GerenciaRedeD2D(MainActivity.this);
         gerenciaRedeD2D.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+    }
+
+    public void checarPermissoes() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (this.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                final AlertDialog.Builder builder = new AlertDialog.Builder(this); builder.setTitle("Este app precisa de acesso à localização");
+                builder.setMessage("Por favor, conceda acesso à localização de modo que este app possa obter sua localização.");
+                builder.setPositiveButton(android.R.string.ok, null);
+                builder.setOnDismissListener(new DialogInterface.OnDismissListener() {
+                    @TargetApi(Build.VERSION_CODES.M)
+                    @Override public void onDismiss(DialogInterface dialog) {
+                        requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, PERMISSION_REQUEST_COARSE_LOCATION);
+                    }
+                });
+                builder.show();
+            }
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (this.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                final AlertDialog.Builder builder = new AlertDialog.Builder(this); builder.setTitle("Este app precisa de acesso ao WiFi");
+                builder.setMessage("Por favor, conceda acesso à localização de modo que este app possa detectar dispositivos na proximidade.");
+                builder.setPositiveButton(android.R.string.ok, null);
+                builder.setOnDismissListener(new DialogInterface.OnDismissListener() {
+                    @TargetApi(Build.VERSION_CODES.M)
+                    @Override public void onDismiss(DialogInterface dialog) {
+                        requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, PERMISSION_REQUEST_FINE_LOCATION);
+                    }
+                });
+                builder.show();
+            }
+        }
     }
 
     // Cria um dialogo para o usuario setar no nome dele na aplicacao.
@@ -315,9 +353,6 @@ public class MainActivity extends AppCompatActivity {
                 startActivity(intent);
             }
         }
-
-
-
         return retVal;
     }
 
