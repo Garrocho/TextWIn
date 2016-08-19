@@ -42,6 +42,8 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
     public WifiManager wifiManager = null;
     public int netID = -8888;
     public Context contexto = null;
+    public static String SSID_WIFI_LOCAL = "TextWIn"; // Nome da Rede D2D
+    public static String PSK_WIFI_LOCAL = "123456789"; // Senha da Rede D2D
 
     public GerenciaRedeD2D(Context contexto) {
         this.contexto = contexto;
@@ -97,13 +99,13 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
 
                             // Procura uma rede TextWIn dentro das redes wifi escaneadas.
                             for (ScanResult result : apList) {
-                                if (result.SSID.contains("Ensino33")) {
+                                if (result.SSID.contains(SSID_WIFI_LOCAL)) {
                                     Log.d("TEXTWIN", "ENCONTROU A REDE - " + result.SSID);
                                     tmpConfig = new WifiConfiguration();
                                     tmpConfig.BSSID = result.BSSID;
                                     tmpConfig.SSID = "\"" + result.SSID + "\"";
                                     tmpConfig.priority = 1;
-                                    tmpConfig.preSharedKey = "\"" + "3duc4c40" + "\"";
+                                    tmpConfig.preSharedKey = "\"" + PSK_WIFI_LOCAL + "\"";
                                     tmpConfig.status = WifiConfiguration.Status.ENABLED;
                                     tmpConfig.hiddenSSID = false;
                                     tmpConfig.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
@@ -161,6 +163,7 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
                         // Se houver clientes conectados, continua como Tethering.
                         if (clientsAP != null && !clientsAP.isEmpty()) {
                             dormir(1000);
+                            Log.d("TEXTWIN TETHERING", "QTDE D2D - " + clientsAP.size());
                             startTime = System.currentTimeMillis();
                         }
                     }

@@ -311,6 +311,7 @@ public class MainActivity extends AppCompatActivity {
 
                         Log.d("TESTE", "FALHA 1");
                         MulticastSocket clientSocket = new MulticastSocket(6789);
+                        clientSocket.setInterface(InetAddress.getByName("192.168.43.1"));
                         clientSocket.joinGroup(addr);
                         clientSocket.setSoTimeout(10000);
 
@@ -323,7 +324,7 @@ public class MainActivity extends AppCompatActivity {
 
                         Log.d("TESTE", "FALHA 5");
                     } catch (Exception e) {
-                        e.printStackTrace();
+                       e.printStackTrace();
                     }
                 }
                 try {
