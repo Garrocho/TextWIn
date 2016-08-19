@@ -44,6 +44,8 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
     public Context contexto = null;
     public static String SSID_WIFI_LOCAL = "TextWIn"; // Nome da Rede D2D
     public static String PSK_WIFI_LOCAL = "123456789"; // Senha da Rede D2D
+    public static boolean iTethering = false;
+    public static String redeAtual = "";
 
     public GerenciaRedeD2D(Context contexto) {
         this.contexto = contexto;
@@ -80,12 +82,12 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
                         wifiManager.setWifiEnabled(true);
 
                     WifiInfo wifiInfo = wifiManager.getConnectionInfo();
-                    String connected_net = (wifiInfo.getSSID()).toString();
+                    redeAtual = (wifiInfo.getSSID()).toString();
 
-                    Log.d("D2D", connected_net);
+                    Log.d("D2D", redeAtual);
 
-                    if (connected_net != null) {
-                        if (connected_net.equalsIgnoreCase("<unknown ssid>") || connected_net.equalsIgnoreCase("") || connected_net.equalsIgnoreCase("0x")) {
+                    if (redeAtual != null) {
+                        if (redeAtual.equalsIgnoreCase("<unknown ssid>") || redeAtual.equalsIgnoreCase("") || redeAtual.equalsIgnoreCase("0x")) {
 
                             Log.d("D2D", "CLIENTE NAO ENCONTRADO WIFI - START SCAN");
 
@@ -119,14 +121,18 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
                                 netID = wifiManager.addNetwork(tmpConfig);
 
                                 if (wifiManager.enableNetwork(netID, true)) {
+                                    redeAtual = tmpConfig.SSID;
                                     Log.d("TEXTWIN - D2D", "Conectado a Rede WiFi " + tmpConfig.SSID);
+                                    iTethering = false;
                                 }
                                 dormir(2000);
                             }
+
                         }
                         // Caso o dispositivo esteja conectado a uma rede wifi ou ao Tethering, continua como cliente.
                         else {
-                            Log.d("TEXTWIN", "CONECTADO A REDE - " + connected_net);
+                            iTethering = false;
+                            Log.d("TEXTWIN", "CONECTADO A REDE - " + redeAtual);
                             dormir(1000);
                             startTime = System.currentTimeMillis();
                         }
@@ -134,6 +140,7 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
                 }
 
                 Log.d("D2D", "HABILITANDO TETHERING WIFI");
+                redeAtual = "";
 
                 if (netID != -8888) {
                     wifiManager.removeNetwork(netID);
@@ -153,6 +160,8 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
 
                     if (!TetheringManager.isWifiApEnabled()) {
                         TetheringManager.setWifiApEnabled(null, true);
+                        // Start Server Thred / Recebe Mensagens
+                        iTethering = true;
                         dormir(2000);
                     }
 
@@ -162,6 +171,7 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
 
                         // Se houver clientes conectados, continua como Tethering.
                         if (clientsAP != null && !clientsAP.isEmpty()) {
+                            iTethering = true;
                             dormir(1000);
                             Log.d("TEXTWIN TETHERING", "QTDE D2D - " + clientsAP.size());
                             startTime = System.currentTimeMillis();
@@ -170,6 +180,8 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
 
                 }
                 TetheringManager.setWifiApEnabled(null, false);
+                // Destroi a Thread RecebeMensg
+                iTethering = false;
             }
             else {
                 dormir(2000);

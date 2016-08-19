@@ -9,12 +9,14 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.net.wifi.WifiManager;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.StrictMode;
 import android.provider.Settings;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.text.format.Formatter;
 import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
@@ -37,7 +39,10 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
+import java.net.NetworkInterface;
+import java.net.SocketException;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -56,6 +61,8 @@ public class MainActivity extends AppCompatActivity {
     public ExecutorService pool = Executors.newFixedThreadPool(100);
     private static final int PERMISSION_REQUEST_COARSE_LOCATION = 1;
     private static final int PERMISSION_REQUEST_FINE_LOCATION = 2;
+
+    private GerenciaRedeD2D gerenciaRedeD2D = null;
 
 
     class EnviarMSG extends AsyncTask<String, String, List> {
@@ -93,6 +100,12 @@ public class MainActivity extends AppCompatActivity {
                         for (int i = 0; i < 60; i++) {
                             pool.execute(new EnvMSGSep(msgPacket, i * 250));
                         }
+
+                       // String meuIp = getMyIP();
+                      //  meuIp = meuIp.substring(meuIp.lastIndexOf(".")+1, meuIp.length());
+                        if (!gerenciaRedeD2D.iTethering && gerenciaRedeD2D.redeAtual.contains(gerenciaRedeD2D.SSID_WIFI_LOCAL))  {
+                            // Start Thread send Server Pacote/MSG
+                        }
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
@@ -110,6 +123,13 @@ public class MainActivity extends AppCompatActivity {
 
             return null;
         }
+    }
+
+    public String getMyIP() {
+        WifiManager wifiManager = (WifiManager)MainActivity.this.getSystemService(Context.WIFI_SERVICE);
+        int ips = wifiManager.getConnectionInfo().getIpAddress();
+        String ipAddress = Formatter.formatIpAddress(ips);
+        return ipAddress;
     }
 
     // Esse metodo adiciona uma nova mensagem. Para isso ele pega o texto e envia
@@ -171,7 +191,7 @@ public class MainActivity extends AppCompatActivity {
 
         new ObterMensagensTask().execute();
 
-        GerenciaRedeD2D gerenciaRedeD2D = new GerenciaRedeD2D(MainActivity.this);
+        gerenciaRedeD2D = new GerenciaRedeD2D(MainActivity.this);
         gerenciaRedeD2D.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
     }
 
@@ -324,7 +344,7 @@ public class MainActivity extends AppCompatActivity {
 
                         Log.d("TESTE", "FALHA 5");
                     } catch (Exception e) {
-                       e.printStackTrace();
+                        e.printStackTrace();
                     }
                 }
                 try {
@@ -369,8 +389,27 @@ public class MainActivity extends AppCompatActivity {
         public void run() {
             try {
                 Thread.sleep(tempo);
-                DatagramSocket serverSocket = new DatagramSocket();
-                serverSocket.send(pacote);
+
+                Enumeration<NetworkInterface> interfaces = null;
+                MulticastSocket multicastSocket = new MulticastSocket();
+                try {
+                    interfaces = NetworkInterface.getNetworkInterfaces();
+
+                    while (interfaces.hasMoreElements()) {
+                        NetworkInterface iface = interfaces.nextElement();
+                        if (iface.isLoopback() || !iface.isUp())
+                            continue;
+
+                        Enumeration<InetAddress> addresses = iface.getInetAddresses();
+                        while(addresses.hasMoreElements()) {
+                            InetAddress addr = addresses.nextElement();
+                            multicastSocket.setInterface(addr);
+                            multicastSocket.send(pacote);
+                        }
+                    }
+                } catch (SocketException e1) {
+                    e1.printStackTrace();
+                }
             } catch (Exception e) {
                 e.printStackTrace();
             }
