@@ -18,6 +18,8 @@ public class ItemListView {
         this.nome = "";
     }
 
+
+
     public String getTexto() {
         return texto;
     }

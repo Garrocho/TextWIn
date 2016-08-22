@@ -51,18 +51,65 @@ import kotlin.Triple;
 
 public class MainActivity extends AppCompatActivity {
 
-    public ListView listaView; // Este e a lista de itens do layout.
-    List<ItemListView> listaItensView; // Essa e a lista de itens que contem as mensagens.
-    AdapterListView adaptador; // Essa e o adaptador da lista do layout.
+    public static ListView listaView; // Este e a lista de itens do layout.
+    public static List<ItemListView> listaItensView; // Essa e a lista de itens que contem as mensagens.
+    public static AdapterListView adaptador; // Essa e o adaptador da lista do layout.
     String nome = "SemNome"; // Essa variavel contem o nome do usuario.
     public final static String IP = "http://192.168.0.103:5000";
     public static boolean INTERNET = true;
-    public List<String> msgsMC = new ArrayList<>();
+    public static List<String> msgsMC = new ArrayList<>();
     public ExecutorService pool = Executors.newFixedThreadPool(100);
     private static final int PERMISSION_REQUEST_COARSE_LOCATION = 1;
     private static final int PERMISSION_REQUEST_FINE_LOCATION = 2;
 
+    public static String ENDERECO_MULTICAST = "225.5.6.7";
+
     private GerenciaRedeD2D gerenciaRedeD2D = null;
+    public TaskReceberMSGServer taskReceberMSGServer = null;
+
+    public void iniciarServerTethering() {
+
+        Log.d("TEXTWIN","INICIANDO STATUS SERVER");
+
+        if (taskReceberMSGServer == null) {
+            taskReceberMSGServer = new TaskReceberMSGServer(this);
+            taskReceberMSGServer.execute();
+        }
+    }
+
+    public void pararServerTethering() {
+
+        Log.d("TEXTWIN","PARANDO STATUS SERVER");
+
+        if (taskReceberMSGServer != null) {
+            taskReceberMSGServer.cancel(true);
+            taskReceberMSGServer = null;
+        }
+    }
+
+    public void atualizaLista(final String nome, final String mensagem) {
+
+        MainActivity.this.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                ItemListView novoItem = new ItemListView(nome, mensagem);
+                MainActivity.listaItensView.add(novoItem);
+
+                int index = listaView.getFirstVisiblePosition();
+                View v = listaView.getChildAt(0);
+                int top = (v == null) ? 0 : v.getTop();
+
+                // Atualiza a listView
+                adaptador = new AdapterListView(MainActivity.this, listaItensView);
+                listaView.setAdapter(adaptador);
+                // listaView.setSelectionFromTop(listaItensView.size(), top);
+
+                                    /* Volta a visualizacao da lista para o itemView que ele estava visualizando antes de atualizar. */
+                listaView.setSelectionFromTop(index, top);
+            }//public void run() {
+        });
+    }
+
 
 
     class EnviarMSG extends AsyncTask<String, String, List> {
@@ -89,7 +136,7 @@ public class MainActivity extends AppCompatActivity {
                     // Nesse caso teremos que verificar se existe conexão WIFI e abrir multicast.
                     try {
 
-                        InetAddress addr = InetAddress.getByName("228.5.6.7");
+                        InetAddress addr = InetAddress.getByName(ENDERECO_MULTICAST);
 
                         String mensg = nom + "656789" + msg;
 
@@ -105,6 +152,8 @@ public class MainActivity extends AppCompatActivity {
                       //  meuIp = meuIp.substring(meuIp.lastIndexOf(".")+1, meuIp.length());
                         if (!gerenciaRedeD2D.iTethering && gerenciaRedeD2D.redeAtual.contains(gerenciaRedeD2D.SSID_WIFI_LOCAL))  {
                             // Start Thread send Server Pacote/MSG
+                            Log.d("MAINACTIVITY", "ENTREI AQUI");
+                            new TaskEnviarMSGServer(5555, getServerIP(), mensg).execute();
                         }
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -130,6 +179,14 @@ public class MainActivity extends AppCompatActivity {
         int ips = wifiManager.getConnectionInfo().getIpAddress();
         String ipAddress = Formatter.formatIpAddress(ips);
         return ipAddress;
+    }
+
+    public String getServerIP() {
+        WifiManager wifiManager = (WifiManager)MainActivity.this.getSystemService(Context.WIFI_SERVICE);
+        int ips = wifiManager.getConnectionInfo().getIpAddress();
+        @SuppressWarnings("deprecation")
+        String ipAddress = Formatter.formatIpAddress(ips);
+        return ipAddress.substring(0, ipAddress.lastIndexOf(".")+1) + "1";
     }
 
     // Esse metodo adiciona uma nova mensagem. Para isso ele pega o texto e envia
@@ -327,11 +384,10 @@ public class MainActivity extends AppCompatActivity {
                     INTERNET = false;
 
                     try {
-                        InetAddress addr = InetAddress.getByName("228.5.6.7");
+                        InetAddress addr = InetAddress.getByName(ENDERECO_MULTICAST);
 
                         Log.d("TESTE", "FALHA 1");
                         MulticastSocket clientSocket = new MulticastSocket(6789);
-                        clientSocket.setInterface(InetAddress.getByName("192.168.43.1"));
                         clientSocket.joinGroup(addr);
                         clientSocket.setSoTimeout(10000);
 

@@ -28,6 +28,7 @@ import java.util.List;
 import kotlin.Triple;
 import moblab.exemplolista.ItemListView;
 import moblab.exemplolista.MainActivity;
+import moblab.exemplolista.TaskReceberMSGServer;
 
 /**
  * Created by charles on 14/08/16.
@@ -41,14 +42,14 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
     public WifiApManager TetheringManager = null;
     public WifiManager wifiManager = null;
     public int netID = -8888;
-    public Context contexto = null;
+    public MainActivity app = null;
     public static String SSID_WIFI_LOCAL = "TextWIn"; // Nome da Rede D2D
     public static String PSK_WIFI_LOCAL = "123456789"; // Senha da Rede D2D
     public static boolean iTethering = false;
     public static String redeAtual = "";
 
-    public GerenciaRedeD2D(Context contexto) {
-        this.contexto = contexto;
+    public GerenciaRedeD2D(MainActivity contexto) {
+        this.app = contexto;
         Log.d("D2D", "CRIANDO");
     }
 
@@ -76,7 +77,7 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
                     Log.d("D2D", "CLIENTE PESQUISANDO - " + String.valueOf(System.currentTimeMillis() - startTime));
 
                     if (wifiManager == null)
-                        wifiManager = (WifiManager) contexto.getSystemService(Context.WIFI_SERVICE);
+                        wifiManager = (WifiManager) app.getSystemService(Context.WIFI_SERVICE);
 
                     if (!wifiManager.isWifiEnabled())
                         wifiManager.setWifiEnabled(true);
@@ -156,11 +157,16 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
                     Log.d("D2D", "TETHRING COMEÇANDO");
 
                     if (TetheringManager == null)
-                        TetheringManager = new WifiApManager(contexto);
+                        TetheringManager = new WifiApManager(app);
 
                     if (!TetheringManager.isWifiApEnabled()) {
                         TetheringManager.setWifiApEnabled(null, true);
+
+                        Log.d("D2DAP", "WIFI HABILITADO");
+
                         // Start Server Thred / Recebe Mensagens
+                        app.iniciarServerTethering();
+
                         iTethering = true;
                         dormir(2000);
                     }
@@ -180,7 +186,10 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
 
                 }
                 TetheringManager.setWifiApEnabled(null, false);
+
                 // Destroi a Thread RecebeMensg
+                app.pararServerTethering();
+
                 iTethering = false;
             }
             else {
@@ -233,7 +242,7 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
 
     public float getBateria() {
         IntentFilter ifilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
-        Intent batteryStatus = contexto.registerReceiver(null, ifilter);
+        Intent batteryStatus = app.registerReceiver(null, ifilter);
         int level = batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
         int scale = batteryStatus.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
         return (level / (float) scale) * 100;
