@@ -159,7 +159,7 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
                     if (TetheringManager == null)
                         TetheringManager = new WifiApManager(app);
 
-                    if (!TetheringManager.isWifiApEnabled()) {
+                    if (!TetheringManager.isWifiApEnabled() && !iTethering) {
                         TetheringManager.setWifiApEnabled(null, true);
 
                         Log.d("D2DAP", "WIFI HABILITADO");

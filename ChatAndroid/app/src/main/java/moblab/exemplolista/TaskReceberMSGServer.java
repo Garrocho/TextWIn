@@ -31,22 +31,29 @@ public class TaskReceberMSGServer extends AsyncTask<String, String, String> {
     @Override
     protected String doInBackground(String... strings) {
 
-        Log.d("EUSERVER", "ENTREI AQUI 0");
+        Log.d("TaskReceberMSGServer", "ENTREI AQUI 0");
 
         while (this.euServidor) {
 
-            Log.d("EUSERVER", "ENTREI AQUI 1");
+            Log.d("TaskReceberMSGServer", "ENTREI AQUI 1");
 
             if (soqueteServidor == null) {
-                abrirSoqueteServidor();
-                Log.d("EUSERVER", "CRIANDO SOCKET");
+                if (abrirSoqueteServidor()) {
+                    Log.d("TaskReceberMSGServer", "SOCKET SERVER ABERTO");
+                }
+                else {
+                    Log.d("TaskReceberMSGServer", "SOCKET SERVER NÃO ABERTO");
+                    this.euServidor = false;
+                }
+
             }
+
             else {
                 Socket soqueteCliente = null;
                 try {
-                    Log.d("EUSERVER", "AGUARDANDO CLIENTE");
+                    Log.d("TaskReceberMSGServer", "AGUARDANDO CLIENTE");
                     soqueteCliente = this.soqueteServidor.accept();
-                    Log.d("EUSERVER", "CLIENTE CONECTADO");
+                    Log.d("TaskReceberMSGServer", "CLIENTE CONECTADO");
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -59,11 +66,11 @@ public class TaskReceberMSGServer extends AsyncTask<String, String, String> {
 
                         String msg = (String)recebeDados.readObject();
 
-                        Log.d("TEXTWIN - TASKSERVER ", msg);
+                        Log.d("TaskReceberMSGServer ", msg);
                         String[] dados = msg.split("656789");
 
                         String msgMCNew = dados[0] + dados[1];
-                        Log.d("TEXTWIN - TASKSERVER ", "FALHA 4");
+                        Log.d("TaskReceberMSGServer ", "FALHA 4");
 
                         if (!MainActivity.msgsMC.contains(msgMCNew)) {
                             MainActivity.msgsMC.add(msgMCNew);
@@ -88,6 +95,7 @@ public class TaskReceberMSGServer extends AsyncTask<String, String, String> {
             this.soqueteServidor = new ServerSocket(this.portaServidor);
             return true;
         } catch (IOException e) {
+            e.printStackTrace();
             return false;
         }
     }

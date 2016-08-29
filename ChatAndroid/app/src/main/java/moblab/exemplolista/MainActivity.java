@@ -69,21 +69,27 @@ public class MainActivity extends AppCompatActivity {
 
     public void iniciarServerTethering() {
 
-        Log.d("TEXTWIN","INICIANDO STATUS SERVER");
+        Log.d("TaskReceberMSGServer","INICIANDO STATUS SERVER");
 
         if (taskReceberMSGServer == null) {
-            taskReceberMSGServer = new TaskReceberMSGServer(this);
-            taskReceberMSGServer.execute();
+            taskReceberMSGServer  = new TaskReceberMSGServer(this);
+            taskReceberMSGServer.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+        }
+        else {
+            Log.d("TaskReceberMSGServer","SERVER JÁ EXECUTANDO");
         }
     }
 
     public void pararServerTethering() {
 
-        Log.d("TEXTWIN","PARANDO STATUS SERVER");
+        Log.d("TaskReceberMSGServer","PARANDO STATUS SERVER");
 
         if (taskReceberMSGServer != null) {
             taskReceberMSGServer.cancel(true);
             taskReceberMSGServer = null;
+        }
+        else {
+            Log.d("TaskReceberMSGServer","SERVER NÃO ESTÁ EXECUTANDO");
         }
     }
 
@@ -95,17 +101,18 @@ public class MainActivity extends AppCompatActivity {
                 ItemListView novoItem = new ItemListView(nome, mensagem);
                 MainActivity.listaItensView.add(novoItem);
 
-                int index = listaView.getFirstVisiblePosition();
-                View v = listaView.getChildAt(0);
-                int top = (v == null) ? 0 : v.getTop();
+                //int index = listaView.getFirstVisiblePosition();
+                //View v = listaView.getChildAt(0);
+                //int top = (v == null) ? 0 : v.getTop();
 
                 // Atualiza a listView
                 adaptador = new AdapterListView(MainActivity.this, listaItensView);
                 listaView.setAdapter(adaptador);
+                listaView.setSelection(adaptador.getCount() - 1);
                 // listaView.setSelectionFromTop(listaItensView.size(), top);
 
                                     /* Volta a visualizacao da lista para o itemView que ele estava visualizando antes de atualizar. */
-                listaView.setSelectionFromTop(index, top);
+                //listaView.setSelectionFromTop(index, top);
             }//public void run() {
         });
     }
@@ -153,7 +160,18 @@ public class MainActivity extends AppCompatActivity {
                         if (!gerenciaRedeD2D.iTethering && gerenciaRedeD2D.redeAtual.contains(gerenciaRedeD2D.SSID_WIFI_LOCAL))  {
                             // Start Thread send Server Pacote/MSG
                             Log.d("MAINACTIVITY", "ENTREI AQUI");
-                            new TaskEnviarMSGServer(5555, getServerIP(), mensg).execute();
+                            TaskEnviarMSGServer taskEnviarMSGServer = new TaskEnviarMSGServer(5555, getServerIP(), mensg);
+                            taskEnviarMSGServer.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+                        }
+                        else {
+                            String[] dados = mensg.split("656789");
+                            String msgMCNew = dados[0] + dados[1];
+                            Log.d("TaskReceberMSGServer ", "FALHA 4");
+
+                            if (!MainActivity.msgsMC.contains(msgMCNew)) {
+                                MainActivity.msgsMC.add(msgMCNew);
+                                atualizaLista(dados[0], dados[1]);
+                            }
                         }
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -360,17 +378,17 @@ public class MainActivity extends AppCompatActivity {
                                 MainActivity.this.runOnUiThread(new Runnable() {
                                     @Override
                                     public void run() {
-                                        int index = listaView.getFirstVisiblePosition();
-                                        View v = listaView.getChildAt(0);
-                                        int top = (v == null) ? 0 : v.getTop();
+                                        //int index = listaView.getFirstVisiblePosition();
+                                        //View v = listaView.getChildAt(0);
+                                        //int top = (v == null) ? 0 : v.getTop();
 
                                         // Atualiza a listView
                                         adaptador = new AdapterListView(MainActivity.this, listaItensView);
                                         listaView.setAdapter(adaptador);
                                         // listaView.setSelectionFromTop(listaItensView.size(), top);
-
+                                        listaView.setSelection(adaptador.getCount() - 1);
                                     /* Volta a visualizacao da lista para o itemView que ele estava visualizando antes de atualizar. */
-                                        listaView.setSelectionFromTop(index, top);
+                                        //listaView.setSelectionFromTop(index, top);
                                     }//public void run() {
                                 });
                             }
@@ -519,7 +537,8 @@ public class MainActivity extends AppCompatActivity {
                             // listaView.setSelectionFromTop(listaItensView.size(), top);
 
                                     /* Volta a visualizacao da lista para o itemView que ele estava visualizando antes de atualizar. */
-                            listaView.setSelectionFromTop(index, top);
+                            listaView.setSelection(adaptador.getCount() - 1);
+                            //listaView.setSelectionFromTop(index, top);
                         }//public void run() {
                     });
                 }

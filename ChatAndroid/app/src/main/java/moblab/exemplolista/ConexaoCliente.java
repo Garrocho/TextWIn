@@ -35,6 +35,7 @@ public class ConexaoCliente {
             recebeDados = new ObjectInputStream(conexao.getInputStream());
             return true;
         }catch (Exception e) {
+            Log.d("TaskEnviarMSGServer", e.getMessage());
             return false;
         }
     }
