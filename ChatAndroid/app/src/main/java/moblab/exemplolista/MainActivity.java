@@ -55,7 +55,7 @@ public class MainActivity extends AppCompatActivity {
     public static List<ItemListView> listaItensView; // Essa e a lista de itens que contem as mensagens.
     public static AdapterListView adaptador; // Essa e o adaptador da lista do layout.
     String nome = "SemNome"; // Essa variavel contem o nome do usuario.
-    public final static String IP = "http://192.168.0.103:5000";
+    public final static String IP = "http://192.168.12.1:80";
     public static boolean INTERNET = true;
     public static List<String> msgsMC = new ArrayList<>();
     public ExecutorService pool = Executors.newFixedThreadPool(100);
@@ -69,27 +69,25 @@ public class MainActivity extends AppCompatActivity {
 
     public void iniciarServerTethering() {
 
-        Log.d("TaskReceberMSGServer","INICIANDO STATUS SERVER");
+        Log.d("TaskReceberMSGServer", "INICIANDO STATUS SERVER");
 
         if (taskReceberMSGServer == null) {
-            taskReceberMSGServer  = new TaskReceberMSGServer(this);
+            taskReceberMSGServer = new TaskReceberMSGServer(this);
             taskReceberMSGServer.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-        }
-        else {
-            Log.d("TaskReceberMSGServer","SERVER JÁ EXECUTANDO");
+        } else {
+            Log.d("TaskReceberMSGServer", "SERVER JÁ EXECUTANDO");
         }
     }
 
     public void pararServerTethering() {
 
-        Log.d("TaskReceberMSGServer","PARANDO STATUS SERVER");
+        Log.d("TaskReceberMSGServer", "PARANDO STATUS SERVER");
 
         if (taskReceberMSGServer != null) {
             taskReceberMSGServer.cancel(true);
             taskReceberMSGServer = null;
-        }
-        else {
-            Log.d("TaskReceberMSGServer","SERVER NÃO ESTÁ EXECUTANDO");
+        } else {
+            Log.d("TaskReceberMSGServer", "SERVER NÃO ESTÁ EXECUTANDO");
         }
     }
 
@@ -116,7 +114,6 @@ public class MainActivity extends AppCompatActivity {
             }//public void run() {
         });
     }
-
 
 
     class EnviarMSG extends AsyncTask<String, String, List> {
@@ -155,15 +152,14 @@ public class MainActivity extends AppCompatActivity {
                             pool.execute(new EnvMSGSep(msgPacket, i * 250));
                         }
 
-                       // String meuIp = getMyIP();
-                      //  meuIp = meuIp.substring(meuIp.lastIndexOf(".")+1, meuIp.length());
-                        if (!gerenciaRedeD2D.iTethering && gerenciaRedeD2D.redeAtual.contains(gerenciaRedeD2D.SSID_WIFI_LOCAL))  {
+                        // String meuIp = getMyIP();
+                        //  meuIp = meuIp.substring(meuIp.lastIndexOf(".")+1, meuIp.length());
+                        if (!gerenciaRedeD2D.iTethering && gerenciaRedeD2D.redeAtual.contains(gerenciaRedeD2D.SSID_WIFI_LOCAL)) {
                             // Start Thread send Server Pacote/MSG
                             Log.d("MAINACTIVITY", "ENTREI AQUI");
                             TaskEnviarMSGServer taskEnviarMSGServer = new TaskEnviarMSGServer(5555, getServerIP(), mensg);
                             taskEnviarMSGServer.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-                        }
-                        else {
+                        } else {
                             String[] dados = mensg.split("656789");
                             String msgMCNew = dados[0] + dados[1];
                             Log.d("TaskReceberMSGServer ", "FALHA 4");
@@ -193,18 +189,18 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public String getMyIP() {
-        WifiManager wifiManager = (WifiManager)MainActivity.this.getSystemService(Context.WIFI_SERVICE);
+        WifiManager wifiManager = (WifiManager) MainActivity.this.getSystemService(Context.WIFI_SERVICE);
         int ips = wifiManager.getConnectionInfo().getIpAddress();
         String ipAddress = Formatter.formatIpAddress(ips);
         return ipAddress;
     }
 
     public String getServerIP() {
-        WifiManager wifiManager = (WifiManager)MainActivity.this.getSystemService(Context.WIFI_SERVICE);
+        WifiManager wifiManager = (WifiManager) MainActivity.this.getSystemService(Context.WIFI_SERVICE);
         int ips = wifiManager.getConnectionInfo().getIpAddress();
         @SuppressWarnings("deprecation")
         String ipAddress = Formatter.formatIpAddress(ips);
-        return ipAddress.substring(0, ipAddress.lastIndexOf(".")+1) + "1";
+        return ipAddress.substring(0, ipAddress.lastIndexOf(".") + 1) + "1";
     }
 
     // Esse metodo adiciona uma nova mensagem. Para isso ele pega o texto e envia
@@ -273,12 +269,14 @@ public class MainActivity extends AppCompatActivity {
     public void checarPermissoes() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (this.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                final AlertDialog.Builder builder = new AlertDialog.Builder(this); builder.setTitle("Este app precisa de acesso à localização");
+                final AlertDialog.Builder builder = new AlertDialog.Builder(this);
+                builder.setTitle("Este app precisa de acesso à localização");
                 builder.setMessage("Por favor, conceda acesso à localização de modo que este app possa obter sua localização.");
                 builder.setPositiveButton(android.R.string.ok, null);
                 builder.setOnDismissListener(new DialogInterface.OnDismissListener() {
                     @TargetApi(Build.VERSION_CODES.M)
-                    @Override public void onDismiss(DialogInterface dialog) {
+                    @Override
+                    public void onDismiss(DialogInterface dialog) {
                         requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, PERMISSION_REQUEST_COARSE_LOCATION);
                     }
                 });
@@ -287,12 +285,14 @@ public class MainActivity extends AppCompatActivity {
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (this.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                final AlertDialog.Builder builder = new AlertDialog.Builder(this); builder.setTitle("Este app precisa de acesso ao WiFi");
+                final AlertDialog.Builder builder = new AlertDialog.Builder(this);
+                builder.setTitle("Este app precisa de acesso ao WiFi");
                 builder.setMessage("Por favor, conceda acesso à localização de modo que este app possa detectar dispositivos na proximidade.");
                 builder.setPositiveButton(android.R.string.ok, null);
                 builder.setOnDismissListener(new DialogInterface.OnDismissListener() {
                     @TargetApi(Build.VERSION_CODES.M)
-                    @Override public void onDismiss(DialogInterface dialog) {
+                    @Override
+                    public void onDismiss(DialogInterface dialog) {
                         requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, PERMISSION_REQUEST_FINE_LOCATION);
                     }
                 });
@@ -336,7 +336,6 @@ public class MainActivity extends AppCompatActivity {
     class ObterMensagensTask extends AsyncTask<String, String, List> {
 
         public boolean continuar = true;
-        public boolean recebeu = false;
 
         @Override
         protected List<ItemListView> doInBackground(String... params) {
@@ -373,31 +372,25 @@ public class MainActivity extends AppCompatActivity {
                             if (!msgsMC.contains(msg)) {
                                 msgsMC.add(msg);
 
-                                if (recebeu) {
+                                ItemListView novoItem = new ItemListView(nome, mensagem);
+                                listaItensView.add(novoItem);
 
-                                    ItemListView novoItem = new ItemListView(nome, mensagem);
-                                    listaItensView.add(novoItem);
+                                MainActivity.this.runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        //int index = listaView.getFirstVisiblePosition();
+                                        //View v = listaView.getChildAt(0);
+                                        //int top = (v == null) ? 0 : v.getTop();
 
-                                    MainActivity.this.runOnUiThread(new Runnable() {
-                                        @Override
-                                        public void run() {
-                                            //int index = listaView.getFirstVisiblePosition();
-                                            //View v = listaView.getChildAt(0);
-                                            //int top = (v == null) ? 0 : v.getTop();
-
-                                            // Atualiza a listView
-                                            adaptador = new AdapterListView(MainActivity.this, listaItensView);
-                                            listaView.setAdapter(adaptador);
-                                            // listaView.setSelectionFromTop(listaItensView.size(), top);
-                                            listaView.setSelection(adaptador.getCount() - 1);
+                                        // Atualiza a listView
+                                        adaptador = new AdapterListView(MainActivity.this, listaItensView);
+                                        listaView.setAdapter(adaptador);
+                                        // listaView.setSelectionFromTop(listaItensView.size(), top);
+                                        listaView.setSelection(adaptador.getCount() - 1);
                                     /* Volta a visualizacao da lista para o itemView que ele estava visualizando antes de atualizar. */
-                                            //listaView.setSelectionFromTop(index, top);
-                                        }//public void run() {
-                                    });
-                                }
-                                else {
-                                    recebeu = true;
-                                }
+                                        //listaView.setSelectionFromTop(index, top);
+                                    }//public void run() {
+                                });
                             }
                         }
                     } catch (JSONException e) {
@@ -443,7 +436,7 @@ public class MainActivity extends AppCompatActivity {
         boolean retVal = true;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             retVal = Settings.System.canWrite(this);
-            if(!retVal){
+            if (!retVal) {
                 MainActivity.this.runOnUiThread(new Runnable() {
                     public void run() {
                         Toast.makeText(MainActivity.this, "Permita a Aplicação Alterar o Estado da Sua Rede!", Toast.LENGTH_LONG).show();
@@ -482,7 +475,7 @@ public class MainActivity extends AppCompatActivity {
                             continue;
 
                         Enumeration<InetAddress> addresses = iface.getInetAddresses();
-                        while(addresses.hasMoreElements()) {
+                        while (addresses.hasMoreElements()) {
                             InetAddress addr = addresses.nextElement();
                             multicastSocket.setInterface(addr);
                             multicastSocket.send(pacote);
