@@ -1,7 +1,7 @@
 import os
 import sqlite3
 from flask import Flask, request, session, g, redirect, url_for, abort, \
-     render_template, flash, jsonify, Response
+     render_template, flash, jsonify, Response, send_from_directory
 import json
 
 
@@ -72,7 +72,12 @@ def bd_deletar_mensagem(nome, mensagem):
 ###################################################
 @app.route('/')
 def pagina_inicial():
-    return "<h1>Bem Vindo ao TextWIn</h1> <h2>Instrucoes:</h2> <b>Para acessar as mensagens: </b> 192.168.10.102:5000/mensagens <br> <br> <b> Para adicionar uma mensagem: </b> 192.168.10.102:5000/adicionar?nome=SeuNome&mensagem=SuaMensagem<br> <br> <b>Para deletar uma mensagem:</b> 192.168.10.102:5000/deletar?nome=SeuNome&mensagem=SuaMensagem"
+    return render_template("index.html", title = 'Inicio')
+
+@app.route('/download/<path:filename>')
+def download_file(filename):
+    return send_from_directory("download",
+                               filename, as_attachment=False)
 
 @app.route('/mensagens')
 def listar_mensagens():
@@ -98,4 +103,4 @@ def deleta_mensagem():
         return "NAO"
 
 if __name__ == "__main__":
-    app.run(host='192.168.0.103')
+    app.run(host='192.168.12.1', port=80)
