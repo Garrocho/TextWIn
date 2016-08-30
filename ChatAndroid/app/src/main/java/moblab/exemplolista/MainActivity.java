@@ -336,6 +336,7 @@ public class MainActivity extends AppCompatActivity {
     class ObterMensagensTask extends AsyncTask<String, String, List> {
 
         public boolean continuar = true;
+        public boolean recebeu = false;
 
         @Override
         protected List<ItemListView> doInBackground(String... params) {
@@ -372,25 +373,31 @@ public class MainActivity extends AppCompatActivity {
                             if (!msgsMC.contains(msg)) {
                                 msgsMC.add(msg);
 
-                                ItemListView novoItem = new ItemListView(nome, mensagem);
-                                listaItensView.add(novoItem);
+                                if (recebeu) {
 
-                                MainActivity.this.runOnUiThread(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        //int index = listaView.getFirstVisiblePosition();
-                                        //View v = listaView.getChildAt(0);
-                                        //int top = (v == null) ? 0 : v.getTop();
+                                    ItemListView novoItem = new ItemListView(nome, mensagem);
+                                    listaItensView.add(novoItem);
 
-                                        // Atualiza a listView
-                                        adaptador = new AdapterListView(MainActivity.this, listaItensView);
-                                        listaView.setAdapter(adaptador);
-                                        // listaView.setSelectionFromTop(listaItensView.size(), top);
-                                        listaView.setSelection(adaptador.getCount() - 1);
+                                    MainActivity.this.runOnUiThread(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            //int index = listaView.getFirstVisiblePosition();
+                                            //View v = listaView.getChildAt(0);
+                                            //int top = (v == null) ? 0 : v.getTop();
+
+                                            // Atualiza a listView
+                                            adaptador = new AdapterListView(MainActivity.this, listaItensView);
+                                            listaView.setAdapter(adaptador);
+                                            // listaView.setSelectionFromTop(listaItensView.size(), top);
+                                            listaView.setSelection(adaptador.getCount() - 1);
                                     /* Volta a visualizacao da lista para o itemView que ele estava visualizando antes de atualizar. */
-                                        //listaView.setSelectionFromTop(index, top);
-                                    }//public void run() {
-                                });
+                                            //listaView.setSelectionFromTop(index, top);
+                                        }//public void run() {
+                                    });
+                                }
+                                else {
+                                    recebeu = true;
+                                }
                             }
                         }
                     } catch (JSONException e) {
