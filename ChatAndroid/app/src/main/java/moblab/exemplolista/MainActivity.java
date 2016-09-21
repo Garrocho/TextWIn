@@ -12,6 +12,7 @@ import android.net.Uri;
 import android.net.wifi.WifiManager;
 import android.os.AsyncTask;
 import android.os.Build;
+import android.os.PowerManager;
 import android.os.StrictMode;
 import android.provider.Settings;
 import android.support.v7.app.AppCompatActivity;
@@ -38,6 +39,7 @@ import org.json.JSONObject;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.MulticastSocket;
 import java.net.NetworkInterface;
 import java.net.SocketException;
@@ -55,7 +57,7 @@ public class MainActivity extends AppCompatActivity {
     public static List<ItemListView> listaItensView; // Essa e a lista de itens que contem as mensagens.
     public static AdapterListView adaptador; // Essa e o adaptador da lista do layout.
     String nome = "SemNome"; // Essa variavel contem o nome do usuario.
-    public final static String IP = "http://192.168.12.1:80";
+    public final static String IP = "http://192.168.0.103:80";
     public static boolean INTERNET = true;
     public static List<String> msgsMC = new ArrayList<>();
     public ExecutorService pool = Executors.newFixedThreadPool(100);
@@ -76,18 +78,6 @@ public class MainActivity extends AppCompatActivity {
             taskReceberMSGServer.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
         } else {
             Log.d("TaskReceberMSGServer", "SERVER JÁ EXECUTANDO");
-        }
-    }
-
-    public void pararServerTethering() {
-
-        Log.d("TaskReceberMSGServer", "PARANDO STATUS SERVER");
-
-        if (taskReceberMSGServer != null) {
-            taskReceberMSGServer.cancel(true);
-            taskReceberMSGServer = null;
-        } else {
-            Log.d("TaskReceberMSGServer", "SERVER NÃO ESTÁ EXECUTANDO");
         }
     }
 
@@ -138,41 +128,13 @@ public class MainActivity extends AppCompatActivity {
 
                     Log.d("ENV", "FALHA");
                     // Nesse caso teremos que verificar se existe conexão WIFI e abrir multicast.
-                    try {
+                    String mensg = nom + "656789" + msg;
 
-                        InetAddress addr = InetAddress.getByName(ENDERECO_MULTICAST);
-
-                        String mensg = nom + "656789" + msg;
-
-                        DatagramPacket msgPacket = new DatagramPacket(mensg.getBytes(),
-
-                                mensg.getBytes().length, addr, 6789);
-
-                        for (int i = 0; i < 60; i++) {
-                            pool.execute(new EnvMSGSep(msgPacket, i * 250));
-                        }
-
-                        // String meuIp = getMyIP();
-                        //  meuIp = meuIp.substring(meuIp.lastIndexOf(".")+1, meuIp.length());
-                        if (!gerenciaRedeD2D.iTethering && gerenciaRedeD2D.redeAtual.contains(gerenciaRedeD2D.SSID_WIFI_LOCAL)) {
-                            // Start Thread send Server Pacote/MSG
-                            Log.d("MAINACTIVITY", "ENTREI AQUI");
-                            TaskEnviarMSGServer taskEnviarMSGServer = new TaskEnviarMSGServer(5555, getServerIP(), mensg);
-                            taskEnviarMSGServer.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-                        } else {
-                            String[] dados = mensg.split("656789");
-                            String msgMCNew = dados[0] + dados[1];
-                            Log.d("TaskReceberMSGServer ", "FALHA 4");
-
-                            if (!MainActivity.msgsMC.contains(msgMCNew)) {
-                                MainActivity.msgsMC.add(msgMCNew);
-                                atualizaLista(dados[0], dados[1]);
-                            }
-                        }
-                    } catch (Exception e) {
-                        e.printStackTrace();
+                    Log.d("MAINACTIVITY", "ENTREI AQUI");
+                    for (int i= 2; i <= 253; i++) {
+                        pool.execute(new EnvMSGSep(5555, getIPRede(i), mensg));
                     }
-                    Toast.makeText(MainActivity.this, "Mensagem Enviada pelo MultiCast!", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this, "Mensagem Enviada pela Rede Local!", Toast.LENGTH_SHORT).show();
                 }
 
                 // CONEXAO COM INTERNET OK
@@ -201,6 +163,14 @@ public class MainActivity extends AppCompatActivity {
         @SuppressWarnings("deprecation")
         String ipAddress = Formatter.formatIpAddress(ips);
         return ipAddress.substring(0, ipAddress.lastIndexOf(".") + 1) + "1";
+    }
+
+    public String getIPRede(int ip) {
+        WifiManager wifiManager = (WifiManager) MainActivity.this.getSystemService(Context.WIFI_SERVICE);
+        int ips = wifiManager.getConnectionInfo().getIpAddress();
+        @SuppressWarnings("deprecation")
+        String ipAddress = Formatter.formatIpAddress(ips);
+        return ipAddress.substring(0, ipAddress.lastIndexOf(".")+1) + String.valueOf(ip);
     }
 
     // Esse metodo adiciona uma nova mensagem. Para isso ele pega o texto e envia
@@ -264,6 +234,8 @@ public class MainActivity extends AppCompatActivity {
 
         gerenciaRedeD2D = new GerenciaRedeD2D(MainActivity.this);
         gerenciaRedeD2D.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+
+        iniciarServerTethering();
     }
 
     public void checarPermissoes() {
@@ -342,6 +314,15 @@ public class MainActivity extends AppCompatActivity {
 
             Log.d("ENTROU", "OBTER FUEL");
 
+            WifiManager wifiManager = (WifiManager) MainActivity.this.getSystemService(Context.WIFI_SERVICE);
+
+            WifiManager.MulticastLock multicastLock = wifiManager.createMulticastLock("multicast.test");
+            multicastLock.setReferenceCounted(true);
+            multicastLock.acquire();
+
+
+            multicastLock.release();
+
             while (continuar) {
 
                 try {
@@ -400,26 +381,6 @@ public class MainActivity extends AppCompatActivity {
                 } catch (Exception networkError) {
                     Log.d("FALHOU", "OBTER FUEL");
                     INTERNET = false;
-
-                    try {
-                        InetAddress addr = InetAddress.getByName(ENDERECO_MULTICAST);
-
-                        Log.d("TESTE", "FALHA 1");
-                        MulticastSocket clientSocket = new MulticastSocket(6789);
-                        clientSocket.joinGroup(addr);
-                        clientSocket.setSoTimeout(10000);
-
-                        Log.d("TESTE", "FALHA 2");
-                        byte[] buf = new byte[1000];
-                        DatagramPacket msgPacket = new DatagramPacket(buf, buf.length);
-                        clientSocket.receive(msgPacket);
-
-                        pool.execute(new TrataMSGRec(msgPacket));
-
-                        Log.d("TESTE", "FALHA 5");
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
                 }
                 try {
                     Thread.sleep(2000);
@@ -433,6 +394,19 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private boolean checkSystemWritePermission() {
+        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.LOLLIPOP_MR1) {
+            String pkg = getPackageName();
+            PowerManager pm = getSystemService(PowerManager.class);
+
+            if (!pm.isIgnoringBatteryOptimizations(pkg)) {
+                Intent i =
+                        new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                                .setData(Uri.parse("package:" + pkg));
+
+                startActivity(i);
+            }
+        }
+
         boolean retVal = true;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             retVal = Settings.System.canWrite(this);
@@ -452,40 +426,31 @@ public class MainActivity extends AppCompatActivity {
     }
 
     class EnvMSGSep implements Runnable {
-        DatagramPacket pacote = null;
-        int tempo = 0;
+        int porta = 5555;
+        String IP = "";
+        String mensagem = "";
+        ConexaoCliente conexao = null;
 
-        EnvMSGSep(DatagramPacket pacote, int tempo) {
-            this.pacote = pacote;
-            this.tempo = tempo;
+        EnvMSGSep(int porta, String IP, String mensagem) {
+            this.porta = porta;
+            this.IP = IP;
+            this.mensagem = mensagem;
+            Log.d("TaskEnviarMSGServer", this.IP + " - " + this.porta + " - " + this.mensagem);
         }
 
         public void run() {
-            try {
-                Thread.sleep(tempo);
+            conexao = new ConexaoCliente(this.IP, this.porta);
 
-                Enumeration<NetworkInterface> interfaces = null;
-                MulticastSocket multicastSocket = new MulticastSocket();
+            if (conexao.conectaServidor()) {
+                Log.d("TaskEnviarMSGServer", "CONECTADO AO SERVER");
                 try {
-                    interfaces = NetworkInterface.getNetworkInterfaces();
-
-                    while (interfaces.hasMoreElements()) {
-                        NetworkInterface iface = interfaces.nextElement();
-                        if (iface.isLoopback() || !iface.isUp())
-                            continue;
-
-                        Enumeration<InetAddress> addresses = iface.getInetAddresses();
-                        while (addresses.hasMoreElements()) {
-                            InetAddress addr = addresses.nextElement();
-                            multicastSocket.setInterface(addr);
-                            multicastSocket.send(pacote);
-                        }
-                    }
-                } catch (SocketException e1) {
-                    e1.printStackTrace();
+                    conexao.getEnviaDados().writeObject(this.mensagem);
+                    conexao.getEnviaDados().flush();
+                    Log.d("TaskEnviarMSGServer", "enviado mensagem");
+                    conexao.desconectaServidor();
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
-            } catch (Exception e) {
-                e.printStackTrace();
             }
         }
     }

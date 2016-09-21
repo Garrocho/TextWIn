@@ -164,9 +164,6 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
 
                         Log.d("D2DAP", "WIFI HABILITADO");
 
-                        // Start Server Thred / Recebe Mensagens
-                        app.iniciarServerTethering();
-
                         iTethering = true;
                         dormir(2000);
                     }
@@ -186,9 +183,6 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
 
                 }
                 TetheringManager.setWifiApEnabled(null, false);
-
-                // Destroi a Thread RecebeMensg
-                app.pararServerTethering();
 
                 iTethering = false;
             }
