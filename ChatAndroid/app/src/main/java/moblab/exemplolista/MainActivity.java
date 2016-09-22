@@ -36,13 +36,19 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.MulticastSocket;
 import java.net.NetworkInterface;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.net.SocketException;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
@@ -57,14 +63,13 @@ public class MainActivity extends AppCompatActivity {
     public static List<ItemListView> listaItensView; // Essa e a lista de itens que contem as mensagens.
     public static AdapterListView adaptador; // Essa e o adaptador da lista do layout.
     String nome = "SemNome"; // Essa variavel contem o nome do usuario.
-    public final static String IP = "http://192.168.0.103:80";
+    public final static String IP = "http://192.168.10.222:80";
     public static boolean INTERNET = true;
     public static List<String> msgsMC = new ArrayList<>();
+    public static List<String> clientesAtuais = new ArrayList<>();
     public ExecutorService pool = Executors.newFixedThreadPool(100);
     private static final int PERMISSION_REQUEST_COARSE_LOCATION = 1;
     private static final int PERMISSION_REQUEST_FINE_LOCATION = 2;
-
-    public static String ENDERECO_MULTICAST = "225.5.6.7";
 
     private GerenciaRedeD2D gerenciaRedeD2D = null;
     public TaskReceberMSGServer taskReceberMSGServer = null;
@@ -105,6 +110,56 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    class ReceberMSG extends AsyncTask<String, String, List> {
+
+        public int portaServidor = 5555;
+        protected ServerSocket soqueteServidor = null;
+        protected boolean euServidor = true;
+
+        public ReceberMSG() {
+        }
+
+        private boolean abrirSoqueteServidor() {
+            try {
+                this.soqueteServidor = new ServerSocket(this.portaServidor);
+                return true;
+            } catch (IOException e) {
+                e.printStackTrace();
+                return false;
+            }
+        }
+
+        @Override
+        protected List<ItemListView> doInBackground(String... params) {
+
+            while (this.euServidor) {
+
+                Log.d("TaskReceberMSGServer", "ENTREI AQUI 1");
+
+                if (soqueteServidor == null) {
+                    if (abrirSoqueteServidor()) {
+                        Log.d("TaskReceberMSGServer", "SOCKET SERVER ABERTO");
+                    } else {
+                        Log.d("TaskReceberMSGServer", "SOCKET SERVER NÃO ABERTO");
+                        this.euServidor = false;
+                    }
+                } else {
+                    try {
+                        Log.d("TaskReceberMSGServer", "AGUARDANDO CLIENTE");
+                        pool.execute(new RecMSGSep(this.soqueteServidor.accept()));
+
+                        Log.d("TaskReceberMSGServer", "CLIENTE CONECTADO");
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+
+
+            return null;
+        }
+    }
+
 
     class EnviarMSG extends AsyncTask<String, String, List> {
 
@@ -118,6 +173,7 @@ public class MainActivity extends AppCompatActivity {
         @Override
         protected List<ItemListView> doInBackground(String... params) {
 
+
             Fuel.get(IP + "/adicionar?nome=" + nom + "&mensagem=" + msg).timeout(1000).responseString(new Handler<String>() {
 
                 // SEM CONEXAO COM INTERNET, VERIFICA CONEXÃO COM WIFI LOCAL
@@ -130,11 +186,24 @@ public class MainActivity extends AppCompatActivity {
                     // Nesse caso teremos que verificar se existe conexão WIFI e abrir multicast.
                     String mensg = nom + "656789" + msg;
 
+                    String[] dados = mensg.split("656789");
+
+                    String msgMCNew = dados[0] + dados[1];
+                    Log.d("TaskReceberMSGServer ", "FALHA 4");
+
+                    if (!MainActivity.msgsMC.contains(msgMCNew)) {
+                        MainActivity.msgsMC.add(msgMCNew);
+                        atualizaLista(dados[0], dados[1]);
+                    }
+
+                    for (String i : clientesAtuais)
+                        pool.execute(new EnvMSGSep(5555, i, mensg));
+
                     Log.d("MAINACTIVITY", "ENTREI AQUI");
-                    for (int i= 2; i <= 253; i++) {
+                    for (int i = 1; i <= 253; i++) {
                         pool.execute(new EnvMSGSep(5555, getIPRede(i), mensg));
                     }
-                    Toast.makeText(MainActivity.this, "Mensagem Enviada pela Rede Local!", Toast.LENGTH_SHORT).show();
+
                 }
 
                 // CONEXAO COM INTERNET OK
@@ -142,7 +211,7 @@ public class MainActivity extends AppCompatActivity {
                 public void success(Request request, Response response, String data) {
                     Log.d("ENV", "SUCESSO");
                     INTERNET = true;
-                    Toast.makeText(MainActivity.this, "Mensagem Enviada pela Internet!", Toast.LENGTH_SHORT).show();
+
                 }
             });
 
@@ -166,11 +235,16 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public String getIPRede(int ip) {
-        WifiManager wifiManager = (WifiManager) MainActivity.this.getSystemService(Context.WIFI_SERVICE);
-        int ips = wifiManager.getConnectionInfo().getIpAddress();
-        @SuppressWarnings("deprecation")
-        String ipAddress = Formatter.formatIpAddress(ips);
-        return ipAddress.substring(0, ipAddress.lastIndexOf(".")+1) + String.valueOf(ip);
+        if (!gerenciaRedeD2D.iTethering) {
+            WifiManager wifiManager = (WifiManager) MainActivity.this.getSystemService(Context.WIFI_SERVICE);
+            int ips = wifiManager.getConnectionInfo().getIpAddress();
+            @SuppressWarnings("deprecation")
+            String ipAddress = Formatter.formatIpAddress(ips);
+            return ipAddress.substring(0, ipAddress.lastIndexOf(".") + 1) + String.valueOf(ip);
+        } else {
+            String ipAddress = "192.168.43.1";
+            return ipAddress.substring(0, ipAddress.lastIndexOf(".") + 1) + String.valueOf(ip);
+        }
     }
 
     // Esse metodo adiciona uma nova mensagem. Para isso ele pega o texto e envia
@@ -230,7 +304,8 @@ public class MainActivity extends AppCompatActivity {
 
         checarPermissoes();
 
-        new ObterMensagensTask().execute();
+        new ReceberMSG().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+        new ObterMensagensTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 
         gerenciaRedeD2D = new GerenciaRedeD2D(MainActivity.this);
         gerenciaRedeD2D.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
@@ -314,15 +389,6 @@ public class MainActivity extends AppCompatActivity {
 
             Log.d("ENTROU", "OBTER FUEL");
 
-            WifiManager wifiManager = (WifiManager) MainActivity.this.getSystemService(Context.WIFI_SERVICE);
-
-            WifiManager.MulticastLock multicastLock = wifiManager.createMulticastLock("multicast.test");
-            multicastLock.setReferenceCounted(true);
-            multicastLock.acquire();
-
-
-            multicastLock.release();
-
             while (continuar) {
 
                 try {
@@ -381,6 +447,7 @@ public class MainActivity extends AppCompatActivity {
                 } catch (Exception networkError) {
                     Log.d("FALHOU", "OBTER FUEL");
                     INTERNET = false;
+
                 }
                 try {
                     Thread.sleep(2000);
@@ -442,6 +509,8 @@ public class MainActivity extends AppCompatActivity {
             conexao = new ConexaoCliente(this.IP, this.porta);
 
             if (conexao.conectaServidor()) {
+                if (!clientesAtuais.contains(this.IP))
+                    clientesAtuais.add(this.IP);
                 Log.d("TaskEnviarMSGServer", "CONECTADO AO SERVER");
                 try {
                     conexao.getEnviaDados().writeObject(this.mensagem);
@@ -451,64 +520,52 @@ public class MainActivity extends AppCompatActivity {
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
+            } else {
+                if (clientesAtuais.contains(this.IP))
+                    clientesAtuais.remove(this.IP);
             }
         }
     }
 
-    class TrataMSGRec implements Runnable {
-        DatagramPacket pacote = null;
+    class RecMSGSep implements Runnable {
+        Socket soqueteCliente = null;
+        ObjectOutputStream enviaDados;
+        ObjectInputStream recebeDados;
 
-        TrataMSGRec(DatagramPacket pacote) {
-            this.pacote = pacote;
+        RecMSGSep(Socket soqueteCliente) {
+            this.soqueteCliente = soqueteCliente;
         }
 
         public void run() {
-            try {
-                Log.d("TRATANDO", "MENSAGEM");
-                byte data[] = pacote.getData();
-                int i;
-                for (i = 0; i < data.length; i++) {
-                    if (data[i] == '\0')
-                        break;
+            if (soqueteCliente != null) {
+
+                try {
+                    enviaDados = new ObjectOutputStream(soqueteCliente.getOutputStream());
+                    recebeDados = new ObjectInputStream(soqueteCliente.getInputStream());
+
+                    String msg = (String) recebeDados.readObject();
+
+                    Log.d("TaskReceberMSGServer ", msg);
+                    String[] dados = msg.split("656789");
+
+                    String msgMCNew = dados[0] + dados[1];
+                    Log.d("TaskReceberMSGServer ", "FALHA 4");
+
+                    if (!MainActivity.msgsMC.contains(msgMCNew)) {
+                        MainActivity.msgsMC.add(msgMCNew);
+                        atualizaLista(dados[0], dados[1]);
+                    }
+                    String endIP = soqueteCliente.getRemoteSocketAddress().toString();
+                    endIP = endIP.substring(1, endIP.lastIndexOf(":"));
+                    if (!clientesAtuais.contains(endIP))
+                        clientesAtuais.add(endIP);
+                    enviaDados.close();
+                    recebeDados.close();
+                    soqueteCliente.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
 
-                String msg;
-                Log.d("TESTE", "FALHA 3");
-
-                msg = new String(data, 0, i, "UTF-8");
-
-                Log.d("RECEBEU", msg);
-                String[] dados = msg.split("656789");
-
-                String msgMCNew = dados[0] + dados[1];
-                Log.d("TESTE", "FALHA 4");
-
-                if (!msgsMC.contains(msgMCNew)) {
-                    msgsMC.add(msgMCNew);
-
-                    ItemListView novoItem = new ItemListView(dados[0], dados[1]);
-                    listaItensView.add(novoItem);
-
-                    MainActivity.this.runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            int index = listaView.getFirstVisiblePosition();
-                            View v = listaView.getChildAt(0);
-                            int top = (v == null) ? 0 : v.getTop();
-
-                            // Atualiza a listView
-                            adaptador = new AdapterListView(MainActivity.this, listaItensView);
-                            listaView.setAdapter(adaptador);
-                            // listaView.setSelectionFromTop(listaItensView.size(), top);
-
-                                    /* Volta a visualizacao da lista para o itemView que ele estava visualizando antes de atualizar. */
-                            listaView.setSelection(adaptador.getCount() - 1);
-                            //listaView.setSelectionFromTop(index, top);
-                        }//public void run() {
-                    });
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
             }
         }
     }

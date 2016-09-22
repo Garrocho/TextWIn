@@ -103,4 +103,4 @@ def deleta_mensagem():
         return "NAO"
 
 if __name__ == "__main__":
-    app.run(host='192.168.12.1', port=80)
+    app.run(host='192.168.10.222', port=80)

@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 import kotlin.Triple;
 import moblab.exemplolista.ItemListView;
@@ -53,6 +54,18 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
         Log.d("D2D", "CRIANDO");
     }
 
+    public static int randInt(int min, int max) {
+        Random foo = new Random();
+        int randomNumber = foo.nextInt(max - min) + min;
+        if(randomNumber == min) {
+            return min + 1;
+        }
+        else {
+            return randomNumber;
+        }
+
+    }
+
     @Override
     protected List<ItemListView> doInBackground(String... params) {
 
@@ -66,7 +79,7 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
             // Verifica primeiro se o dispositivo tem acesso a internet.
             if (!MainActivity.INTERNET) {
 
-                tempo_cliente = ((100 - (int) getBateria()) + 5) * 250;
+                tempo_cliente = ((100 - (int) getBateria()) + randInt(10, 50)) * 250;
                 long startTime = System.currentTimeMillis();
 
                 Log.d("D2D", "TEMPO CLIENTE - " + String.valueOf(tempo_cliente));
@@ -123,7 +136,13 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
 
                                 if (wifiManager.enableNetwork(netID, true)) {
                                     redeAtual = tmpConfig.SSID;
-                                    Log.d("TEXTWIN - D2D", "Conectado a Rede WiFi " + tmpConfig.SSID);
+                                    this.app.runOnUiThread(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            app.getSupportActionBar().setTitle("TextWIn [STA - " + redeAtual + "]");
+                                        }
+                                    });
+
                                     iTethering = false;
                                 }
                                 dormir(2000);
@@ -133,7 +152,27 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
                         // Caso o dispositivo esteja conectado a uma rede wifi ou ao Tethering, continua como cliente.
                         else {
                             iTethering = false;
-                            Log.d("TEXTWIN", "CONECTADO A REDE - " + redeAtual);
+
+                            if (app.INTERNET) {
+                                if (redeAtual != null) {
+                                    this.app.runOnUiThread(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            app.getSupportActionBar().setTitle("TextWIn [SERVER OK]");
+                                        }
+                                    });
+                                }
+                            }
+                            else {
+
+                                this.app.runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        app.getSupportActionBar().setTitle("TextWIn [STA - " + redeAtual + "]");
+                                    }
+                                });
+                            }
+
                             dormir(1000);
                             startTime = System.currentTimeMillis();
                         }
@@ -149,7 +188,7 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
                 }
 
                 // Estourou o tempo de busca de redes, neste caso o tethering é ativado.
-                tempo_cliente = ((100 - (int) getBateria()) + 5) * 1000;
+                tempo_cliente = ((100 - (int) getBateria()) + randInt(10, 50)) * 1000;
                 startTime = System.currentTimeMillis();
 
                 while ((System.currentTimeMillis() - startTime) < tempo_cliente) {
@@ -162,7 +201,14 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
                     if (!TetheringManager.isWifiApEnabled() && !iTethering) {
                         TetheringManager.setWifiApEnabled(null, true);
 
+
                         Log.d("D2DAP", "WIFI HABILITADO");
+                        this.app.runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                app.getSupportActionBar().setTitle("TextWIn [AP - 0]");
+                            }
+                        });
 
                         iTethering = true;
                         dormir(2000);
@@ -170,23 +216,35 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
 
                     // Busca os clientes conectados ao Tethering.
                     if (TetheringManager.isWifiApEnabled()) {
-                        ArrayList<ClientScanResult> clientsAP = getClientsTethering();
+                        final ArrayList<ClientScanResult> clientsAP = getClientsTethering();
 
                         // Se houver clientes conectados, continua como Tethering.
                         if (clientsAP != null && !clientsAP.isEmpty()) {
                             iTethering = true;
                             dormir(1000);
-                            Log.d("TEXTWIN TETHERING", "QTDE D2D - " + clientsAP.size());
+                            this.app.runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    app.getSupportActionBar().setTitle("TextWIn [AP - " + clientsAP.size()+"]");
+                                }
+                            });
                             startTime = System.currentTimeMillis();
                         }
                     }
-
                 }
                 TetheringManager.setWifiApEnabled(null, false);
 
                 iTethering = false;
             }
             else {
+                if (redeAtual != null) {
+                    this.app.runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            app.getSupportActionBar().setTitle("TextWIn [SERVER OK]");
+                        }
+                    });
+                }
                 dormir(2000);
             }
         }
