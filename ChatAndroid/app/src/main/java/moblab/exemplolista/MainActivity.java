@@ -67,7 +67,7 @@ public class MainActivity extends AppCompatActivity {
     public static boolean INTERNET = true;
     public static List<String> msgsMC = new ArrayList<>();
     public static List<String> clientesAtuais = new ArrayList<>();
-    public ExecutorService pool = Executors.newFixedThreadPool(100);
+    public ExecutorService pool = Executors.newFixedThreadPool(1000);
     private static final int PERMISSION_REQUEST_COARSE_LOCATION = 1;
     private static final int PERMISSION_REQUEST_FINE_LOCATION = 2;
 
@@ -199,11 +199,6 @@ public class MainActivity extends AppCompatActivity {
                     for (String i : clientesAtuais)
                         pool.execute(new EnvMSGSep(5555, i, mensg));
 
-                    Log.d("MAINACTIVITY", "ENTREI AQUI");
-                    for (int i = 1; i <= 253; i++) {
-                        pool.execute(new EnvMSGSep(5555, getIPRede(i), mensg));
-                    }
-
                 }
 
                 // CONEXAO COM INTERNET OK
@@ -265,10 +260,9 @@ public class MainActivity extends AppCompatActivity {
             campoTexto.setText("");
             ((EditText) findViewById(R.id.editText)).setHint("Mensagem");
 
-            Log.d("ENV", "START TRHEAD");
-
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB) {
+            if (mensagem.isEmpty()) {
+                Toast.makeText(MainActivity.this, "Digite uma Mensagem!", Toast.LENGTH_SHORT).show();
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB) {
                 new EnviarMSG(nome, mensagem).executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
             } else {
                 new EnviarMSG(nome, mensagem).execute();
@@ -306,6 +300,7 @@ public class MainActivity extends AppCompatActivity {
 
         new ReceberMSG().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
         new ObterMensagensTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+        new ObterClientesTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 
         gerenciaRedeD2D = new GerenciaRedeD2D(MainActivity.this);
         gerenciaRedeD2D.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
@@ -316,34 +311,12 @@ public class MainActivity extends AppCompatActivity {
     public void checarPermissoes() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (this.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                final AlertDialog.Builder builder = new AlertDialog.Builder(this);
-                builder.setTitle("Este app precisa de acesso à localização");
-                builder.setMessage("Por favor, conceda acesso à localização de modo que este app possa obter sua localização.");
-                builder.setPositiveButton(android.R.string.ok, null);
-                builder.setOnDismissListener(new DialogInterface.OnDismissListener() {
-                    @TargetApi(Build.VERSION_CODES.M)
-                    @Override
-                    public void onDismiss(DialogInterface dialog) {
-                        requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, PERMISSION_REQUEST_COARSE_LOCATION);
-                    }
-                });
-                builder.show();
+                requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, PERMISSION_REQUEST_COARSE_LOCATION);
             }
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (this.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                final AlertDialog.Builder builder = new AlertDialog.Builder(this);
-                builder.setTitle("Este app precisa de acesso ao WiFi");
-                builder.setMessage("Por favor, conceda acesso à localização de modo que este app possa detectar dispositivos na proximidade.");
-                builder.setPositiveButton(android.R.string.ok, null);
-                builder.setOnDismissListener(new DialogInterface.OnDismissListener() {
-                    @TargetApi(Build.VERSION_CODES.M)
-                    @Override
-                    public void onDismiss(DialogInterface dialog) {
-                        requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, PERMISSION_REQUEST_FINE_LOCATION);
-                    }
-                });
-                builder.show();
+                requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, PERMISSION_REQUEST_FINE_LOCATION);
             }
         }
     }
@@ -460,19 +433,43 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private boolean checkSystemWritePermission() {
-        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.LOLLIPOP_MR1) {
-            String pkg = getPackageName();
-            PowerManager pm = getSystemService(PowerManager.class);
+    class ObterClientesTask extends AsyncTask<String, String, List> {
 
-            if (!pm.isIgnoringBatteryOptimizations(pkg)) {
-                Intent i =
-                        new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
-                                .setData(Uri.parse("package:" + pkg));
+        public boolean continuar = true;
+        public String IP = "";
+        public int porta = 5555;
+        public ConexaoCliente conexao = null;
 
-                startActivity(i);
+        @Override
+        protected List<ItemListView> doInBackground(String... params) {
+
+            while (continuar) {
+
+                for (int i = 1; i <= 253; i++) {
+                    this.IP = getIPRede(i);
+                    try {
+                        conexao = new ConexaoCliente(this.IP, this.porta);
+
+                        if (conexao.conectaServidor()) {
+                            if (!clientesAtuais.contains(this.IP))
+                                clientesAtuais.add(this.IP);
+                            conexao.desconectaServidor();
+                        } else {
+                            if (clientesAtuais.contains(this.IP))
+                                clientesAtuais.remove(this.IP);
+                        }
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+
             }
+
+            return null;
         }
+    }
+
+    private boolean checkSystemWritePermission() {
 
         boolean retVal = true;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -509,8 +506,6 @@ public class MainActivity extends AppCompatActivity {
             conexao = new ConexaoCliente(this.IP, this.porta);
 
             if (conexao.conectaServidor()) {
-                if (!clientesAtuais.contains(this.IP))
-                    clientesAtuais.add(this.IP);
                 Log.d("TaskEnviarMSGServer", "CONECTADO AO SERVER");
                 try {
                     conexao.getEnviaDados().writeObject(this.mensagem);
@@ -520,9 +515,6 @@ public class MainActivity extends AppCompatActivity {
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
-            } else {
-                if (clientesAtuais.contains(this.IP))
-                    clientesAtuais.remove(this.IP);
             }
         }
     }

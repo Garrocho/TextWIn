@@ -136,12 +136,24 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
 
                                 if (wifiManager.enableNetwork(netID, true)) {
                                     redeAtual = tmpConfig.SSID;
-                                    this.app.runOnUiThread(new Runnable() {
-                                        @Override
-                                        public void run() {
-                                            app.getSupportActionBar().setTitle("TextWIn [STA - " + redeAtual + "]");
-                                        }
-                                    });
+
+                                    if (redeAtual.contains("TextWIn")) {
+                                        this.app.runOnUiThread(new Runnable() {
+                                            @Override
+                                            public void run() {
+                                                app.getSupportActionBar().setTitle("TextWIn [STA - D2D]");
+                                            }
+                                        });
+
+                                    }
+                                    else {
+                                        this.app.runOnUiThread(new Runnable() {
+                                            @Override
+                                            public void run() {
+                                                app.getSupportActionBar().setTitle("TextWIn [STA - " + redeAtual + "]");
+                                            }
+                                        });
+                                    }
 
                                     iTethering = false;
                                 }
@@ -158,19 +170,30 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
                                     this.app.runOnUiThread(new Runnable() {
                                         @Override
                                         public void run() {
-                                            app.getSupportActionBar().setTitle("TextWIn [SERVER OK]");
+                                            app.getSupportActionBar().setTitle("TextWIn [STA - SERVER]");
                                         }
                                     });
                                 }
                             }
                             else {
 
-                                this.app.runOnUiThread(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        app.getSupportActionBar().setTitle("TextWIn [STA - " + redeAtual + "]");
-                                    }
-                                });
+                                if (redeAtual.contains("TextWIn")) {
+                                    this.app.runOnUiThread(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            app.getSupportActionBar().setTitle("TextWIn [STA - D2D]");
+                                        }
+                                    });
+
+                                }
+                                else {
+                                    this.app.runOnUiThread(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            app.getSupportActionBar().setTitle("TextWIn [STA - " + redeAtual + "]");
+                                        }
+                                    });
+                                }
                             }
 
                             dormir(1000);
@@ -238,12 +261,31 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
             }
             else {
                 if (redeAtual != null) {
-                    this.app.runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            app.getSupportActionBar().setTitle("TextWIn [SERVER OK]");
-                        }
-                    });
+                    if (redeAtual.equals("")) {
+                        this.app.runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                app.getSupportActionBar().setTitle("TextWIn [STA - SERVER]");
+                            }
+                        });
+                    }
+                    else if (redeAtual.contains("TextWIn")) {
+                        this.app.runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                app.getSupportActionBar().setTitle("TextWIn [STA - D2D]");
+                            }
+                        });
+
+                    }
+                    else {
+                        this.app.runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                app.getSupportActionBar().setTitle("TextWIn [STA - " + redeAtual + "]");
+                            }
+                        });
+                    }
                 }
                 dormir(2000);
             }
