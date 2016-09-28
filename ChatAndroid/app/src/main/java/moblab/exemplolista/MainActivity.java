@@ -1,7 +1,6 @@
 package moblab.exemplolista;
 
 import android.Manifest;
-import android.annotation.TargetApi;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -12,7 +11,6 @@ import android.net.Uri;
 import android.net.wifi.WifiManager;
 import android.os.AsyncTask;
 import android.os.Build;
-import android.os.PowerManager;
 import android.os.StrictMode;
 import android.provider.Settings;
 import android.support.v7.app.AppCompatActivity;
@@ -39,18 +37,9 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.MulticastSocket;
-import java.net.NetworkInterface;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.SocketException;
-import java.net.UnknownHostException;
 import java.util.ArrayList;
-import java.util.Enumeration;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -63,7 +52,7 @@ public class MainActivity extends AppCompatActivity {
     public static List<ItemListView> listaItensView; // Essa e a lista de itens que contem as mensagens.
     public static AdapterListView adaptador; // Essa e o adaptador da lista do layout.
     String nome = "SemNome"; // Essa variavel contem o nome do usuario.
-    public final static String IP = "http://192.168.10.222:80";
+    public final static String IP = "http://192.168.0.103:80";
     public static boolean INTERNET = true;
     public static List<String> msgsMC = new ArrayList<>();
     public static List<String> clientesAtuais = new ArrayList<>();
@@ -73,6 +62,7 @@ public class MainActivity extends AppCompatActivity {
 
     private GerenciaRedeD2D gerenciaRedeD2D = null;
     public TaskReceberMSGServer taskReceberMSGServer = null;
+    public List<ContataCliente> ObterclientesAtuais = new ArrayList<>();
 
     public void iniciarServerTethering() {
 
@@ -129,6 +119,14 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
+        public void dormir(int tempo) {
+            try {
+                Thread.sleep(tempo);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
         @Override
         protected List<ItemListView> doInBackground(String... params) {
 
@@ -138,21 +136,18 @@ public class MainActivity extends AppCompatActivity {
 
                 if (soqueteServidor == null) {
                     if (abrirSoqueteServidor()) {
-                        Log.d("TaskReceberMSGServer", "SOCKET SERVER ABERTO");
                     } else {
-                        Log.d("TaskReceberMSGServer", "SOCKET SERVER NÃO ABERTO");
                         this.euServidor = false;
                     }
                 } else {
                     try {
-                        Log.d("TaskReceberMSGServer", "AGUARDANDO CLIENTE");
                         pool.execute(new RecMSGSep(this.soqueteServidor.accept()));
 
-                        Log.d("TaskReceberMSGServer", "CLIENTE CONECTADO");
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
                 }
+
             }
 
 
@@ -230,12 +225,20 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public String getIPRede(int ip) {
+
         if (!gerenciaRedeD2D.iTethering) {
             WifiManager wifiManager = (WifiManager) MainActivity.this.getSystemService(Context.WIFI_SERVICE);
             int ips = wifiManager.getConnectionInfo().getIpAddress();
             @SuppressWarnings("deprecation")
             String ipAddress = Formatter.formatIpAddress(ips);
-            return ipAddress.substring(0, ipAddress.lastIndexOf(".") + 1) + String.valueOf(ip);
+            ipAddress = ipAddress.substring(0, ipAddress.lastIndexOf("."));
+            if (!ipAddress.equalsIgnoreCase("0.0.0")) {
+                return ipAddress + "." + String.valueOf(ip);
+            }
+            else {
+                ipAddress = "192.168.43.1";
+                return ipAddress.substring(0, ipAddress.lastIndexOf(".") + 1) + String.valueOf(ip);
+            }
         } else {
             String ipAddress = "192.168.43.1";
             return ipAddress.substring(0, ipAddress.lastIndexOf(".") + 1) + String.valueOf(ip);
@@ -300,12 +303,19 @@ public class MainActivity extends AppCompatActivity {
 
         new ReceberMSG().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
         new ObterMensagensTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-        new ObterClientesTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 
         gerenciaRedeD2D = new GerenciaRedeD2D(MainActivity.this);
         gerenciaRedeD2D.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 
-        iniciarServerTethering();
+        clientesAtuais.add(getMyIP());
+
+        iniciaObterClientes();
+
+        //iniciarServerTethering();
+    }
+
+    public void iniciaObterClientes() {
+        new ObterClientesTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
     }
 
     public void checarPermissoes() {
@@ -435,36 +445,31 @@ public class MainActivity extends AppCompatActivity {
 
     class ObterClientesTask extends AsyncTask<String, String, List> {
 
-        public boolean continuar = true;
         public String IP = "";
         public int porta = 5555;
-        public ConexaoCliente conexao = null;
+        public String fim = "";
 
         @Override
         protected List<ItemListView> doInBackground(String... params) {
 
-            while (continuar) {
-
+            if (ObterclientesAtuais.isEmpty()) {
                 for (int i = 1; i <= 253; i++) {
                     this.IP = getIPRede(i);
-                    try {
-                        conexao = new ConexaoCliente(this.IP, this.porta);
-
-                        if (conexao.conectaServidor()) {
-                            if (!clientesAtuais.contains(this.IP))
-                                clientesAtuais.add(this.IP);
-                            conexao.desconectaServidor();
-                        } else {
-                            if (clientesAtuais.contains(this.IP))
-                                clientesAtuais.remove(this.IP);
-                        }
-                    } catch (IOException e) {
-                        e.printStackTrace();
+                    Log.d("TEXTWIN IP", this.IP);
+                    if (!this.IP.equalsIgnoreCase(getMyIP())) {
+                        ObterclientesAtuais.add(new ContataCliente(this.porta, this.IP));
                     }
                 }
-
+                for (ContataCliente conCli : ObterclientesAtuais) {
+                    pool.execute(conCli);
+                }
             }
-
+            else {
+                for (ContataCliente conCli : ObterclientesAtuais) {
+                    conCli.IP = getIPRede(Integer.parseInt(conCli.IP.substring(conCli.IP.lastIndexOf(".") + 1, conCli.IP.length())));
+                    Log.d("TEXTWIN IP", conCli.IP);
+                }
+            }
             return null;
         }
     }
@@ -487,6 +492,48 @@ public class MainActivity extends AppCompatActivity {
             }
         }
         return retVal;
+    }
+
+    class ContataCliente implements Runnable {
+        String IP;
+        int porta = 5555;
+        ConexaoCliente conexao = null;
+        boolean continuar = true;
+
+        ContataCliente(int porta, String IP) {
+            this.porta = porta;
+            this.IP = IP;
+        }
+
+        public void run() {
+
+            while (continuar) {
+                try {
+                    conexao = new ConexaoCliente(this.IP, this.porta);
+
+                    if (conexao.conectaServidor()) {
+
+                        if (!clientesAtuais.contains(this.IP))
+                            clientesAtuais.add(this.IP);
+                        conexao.desconectaServidor();
+                    } else {
+                        if (clientesAtuais.contains(this.IP))
+                            clientesAtuais.remove(this.IP);
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                dormir(3000);
+            }
+        }
+    }
+
+    public void dormir(int tempo) {
+        try {
+            Thread.sleep(tempo);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     class EnvMSGSep implements Runnable {
@@ -532,6 +579,11 @@ public class MainActivity extends AppCompatActivity {
             if (soqueteCliente != null) {
 
                 try {
+                    String endIP = soqueteCliente.getRemoteSocketAddress().toString();
+                    endIP = endIP.substring(1, endIP.lastIndexOf(":"));
+                    if (!clientesAtuais.contains(endIP))
+                        clientesAtuais.add(endIP);
+
                     enviaDados = new ObjectOutputStream(soqueteCliente.getOutputStream());
                     recebeDados = new ObjectInputStream(soqueteCliente.getInputStream());
 
@@ -547,15 +599,12 @@ public class MainActivity extends AppCompatActivity {
                         MainActivity.msgsMC.add(msgMCNew);
                         atualizaLista(dados[0], dados[1]);
                     }
-                    String endIP = soqueteCliente.getRemoteSocketAddress().toString();
-                    endIP = endIP.substring(1, endIP.lastIndexOf(":"));
-                    if (!clientesAtuais.contains(endIP))
-                        clientesAtuais.add(endIP);
+
                     enviaDados.close();
                     recebeDados.close();
                     soqueteCliente.close();
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    //e.printStackTrace();
                 }
 
             }

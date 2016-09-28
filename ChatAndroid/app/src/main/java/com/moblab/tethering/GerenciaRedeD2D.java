@@ -142,6 +142,7 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
                                             @Override
                                             public void run() {
                                                 app.getSupportActionBar().setTitle("TextWIn [STA - D2D]");
+                                                app.iniciaObterClientes();
                                             }
                                         });
 
@@ -151,6 +152,7 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
                                             @Override
                                             public void run() {
                                                 app.getSupportActionBar().setTitle("TextWIn [STA - " + redeAtual + "]");
+                                                app.iniciaObterClientes();
                                             }
                                         });
                                     }
@@ -216,8 +218,6 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
 
                 while ((System.currentTimeMillis() - startTime) < tempo_cliente) {
 
-                    Log.d("D2D", "TETHRING COMEÇANDO");
-
                     if (TetheringManager == null)
                         TetheringManager = new WifiApManager(app);
 
@@ -229,7 +229,8 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
                         this.app.runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
-                                app.getSupportActionBar().setTitle("TextWIn [AP - 0]");
+                                app.getSupportActionBar().setTitle("TextWIn [AP - D2D]");
+                                app.iniciaObterClientes();
                             }
                         });
 
@@ -244,13 +245,13 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
                         // Se houver clientes conectados, continua como Tethering.
                         if (clientsAP != null && !clientsAP.isEmpty()) {
                             iTethering = true;
-                            dormir(1000);
                             this.app.runOnUiThread(new Runnable() {
                                 @Override
                                 public void run() {
-                                    app.getSupportActionBar().setTitle("TextWIn [AP - " + clientsAP.size()+"]");
+                                    app.getSupportActionBar().setTitle("TextWIn [AP - D2D]");
                                 }
                             });
+                            dormir(1000);
                             startTime = System.currentTimeMillis();
                         }
                     }
@@ -265,7 +266,7 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
                         this.app.runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
-                                app.getSupportActionBar().setTitle("TextWIn [STA - SERVER]");
+                                app.getSupportActionBar().setTitle("TextWIn [STA - OFFLINE]");
                             }
                         });
                     }

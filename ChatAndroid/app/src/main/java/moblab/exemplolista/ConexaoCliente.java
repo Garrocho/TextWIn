@@ -19,6 +19,7 @@ public class ConexaoCliente {
     private Socket conexao;
     private int PORTA = 5555;
     private String ENDERECO = "";
+    private int TIMEOUT = -1;
 
     public ConexaoCliente(String endereco, int porta) {
         super();
@@ -28,16 +29,15 @@ public class ConexaoCliente {
 
     public Boolean conectaServidor() {
 
-        try {
-            InetAddress endereco = InetAddress.getByName(ENDERECO);
-            conexao = new Socket(endereco, PORTA);
-            enviaDados = new ObjectOutputStream(conexao.getOutputStream());
-            recebeDados = new ObjectInputStream(conexao.getInputStream());
-            return true;
-        }catch (Exception e) {
-
-            Log.d("TaskEnviarMSGServer", e.getMessage());
-            return false;
+            try {
+                InetAddress endereco = InetAddress.getByName(ENDERECO);
+                conexao = new Socket(endereco, PORTA);
+                conexao.setSoTimeout(300);
+                enviaDados = new ObjectOutputStream(conexao.getOutputStream());
+                recebeDados = new ObjectInputStream(conexao.getInputStream());
+                return true;
+            }catch (Exception e) {
+                return false;
         }
     }
 
