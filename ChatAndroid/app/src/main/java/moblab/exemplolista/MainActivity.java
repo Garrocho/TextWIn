@@ -168,42 +168,43 @@ public class MainActivity extends AppCompatActivity {
         @Override
         protected List<ItemListView> doInBackground(String... params) {
 
+                Log.d("ENVIANDO", nome + msg);
 
-            Fuel.get(IP + "/adicionar?nome=" + nom + "&mensagem=" + msg).timeout(1000).responseString(new Handler<String>() {
+                Fuel.get(IP + "/adicionar?nome=" + nom + "&mensagem=" + msg).timeout(500).responseString(new Handler<String>() {
 
-                // SEM CONEXAO COM INTERNET, VERIFICA CONEXÃO COM WIFI LOCAL
-                @Override
-                public void failure(Request request, Response response, FuelError error) {
+                    // SEM CONEXAO COM INTERNET, VERIFICA CONEXÃO COM WIFI LOCAL
+                    @Override
+                    public void failure(Request request, Response response, FuelError error) {
 
-                    INTERNET = false;
+                        INTERNET = false;
 
-                    Log.d("ENV", "FALHA");
-                    // Nesse caso teremos que verificar se existe conexão WIFI e abrir multicast.
-                    String mensg = nom + "656789" + msg;
+                        Log.d("ENV", "FALHA");
+                        // Nesse caso teremos que verificar se existe conexão WIFI e abrir multicast.
+                        String mensg = nom + "656789" + msg;
 
-                    String[] dados = mensg.split("656789");
+                        String[] dados = mensg.split("656789");
 
-                    String msgMCNew = dados[0] + dados[1];
-                    Log.d("TaskReceberMSGServer ", "FALHA 4");
+                        String msgMCNew = dados[0] + dados[1];
+                        Log.d("TaskReceberMSGServer ", "FALHA 4");
 
-                    if (!MainActivity.msgsMC.contains(msgMCNew)) {
-                        MainActivity.msgsMC.add(msgMCNew);
-                        atualizaLista(dados[0], dados[1]);
+                        if (!MainActivity.msgsMC.contains(msgMCNew)) {
+                            MainActivity.msgsMC.add(msgMCNew);
+                            atualizaLista(dados[0], dados[1]);
+                        }
+
+                        for (String i : clientesAtuais)
+                            pool.execute(new EnvMSGSep(5555, i, mensg));
+
                     }
 
-                    for (String i : clientesAtuais)
-                        pool.execute(new EnvMSGSep(5555, i, mensg));
+                    // CONEXAO COM INTERNET OK
+                    @Override
+                    public void success(Request request, Response response, String data) {
+//                        Log.d("ENV", "SUCESSO");
+                        INTERNET = true;
 
-                }
-
-                // CONEXAO COM INTERNET OK
-                @Override
-                public void success(Request request, Response response, String data) {
-                    Log.d("ENV", "SUCESSO");
-                    INTERNET = true;
-
-                }
-            });
+                    }
+                });
 
             return null;
         }
@@ -262,6 +263,7 @@ public class MainActivity extends AppCompatActivity {
             String mensagem = textoItem;
             campoTexto.setText("");
             ((EditText) findViewById(R.id.editText)).setHint("Mensagem");
+            Log.d("ENVIANDO", mensagem);
 
             if (mensagem.isEmpty()) {
                 Toast.makeText(MainActivity.this, "Digite uma Mensagem!", Toast.LENGTH_SHORT).show();
@@ -370,7 +372,7 @@ public class MainActivity extends AppCompatActivity {
         @Override
         protected List<ItemListView> doInBackground(String... params) {
 
-            Log.d("ENTROU", "OBTER FUEL");
+            //Log.d("ENTROU", "OBTER FUEL");
 
             while (continuar) {
 
@@ -379,7 +381,7 @@ public class MainActivity extends AppCompatActivity {
                     Request request = data.getFirst();
                     Response response = data.getSecond();
                     Result<byte[], FuelError> text = data.getThird();
-                    Log.d("RESPOSTA 1", text.toString());
+                    //Log.d("RESPOSTA 1", text.toString());
                     INTERNET = true;
 
                     byte data2[] = text.component1();
@@ -428,7 +430,7 @@ public class MainActivity extends AppCompatActivity {
                     }
 
                 } catch (Exception networkError) {
-                    Log.d("FALHOU", "OBTER FUEL");
+                   // Log.d("FALHOU", "OBTER FUEL");
                     INTERNET = false;
 
                 }
@@ -455,7 +457,7 @@ public class MainActivity extends AppCompatActivity {
             if (ObterclientesAtuais.isEmpty()) {
                 for (int i = 1; i <= 253; i++) {
                     this.IP = getIPRede(i);
-                    Log.d("TEXTWIN IP", this.IP);
+                   // Log.d("TEXTWIN IP", this.IP);
                     if (!this.IP.equalsIgnoreCase(getMyIP())) {
                         ObterclientesAtuais.add(new ContataCliente(this.porta, this.IP));
                     }
@@ -467,7 +469,7 @@ public class MainActivity extends AppCompatActivity {
             else {
                 for (ContataCliente conCli : ObterclientesAtuais) {
                     conCli.IP = getIPRede(Integer.parseInt(conCli.IP.substring(conCli.IP.lastIndexOf(".") + 1, conCli.IP.length())));
-                    Log.d("TEXTWIN IP", conCli.IP);
+                  //  Log.d("TEXTWIN IP", conCli.IP);
                 }
             }
             return null;

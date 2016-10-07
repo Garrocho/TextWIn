@@ -74,7 +74,7 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
         // A AsyncTask fica sempre executando. Posteriormente, essa Thread terá que ser um Service.
         while (continuar) {
 
-            Log.d("D2D", "INTERNET = " + String.valueOf(MainActivity.INTERNET));
+            //Log.d("D2D", "INTERNET = " + String.valueOf(MainActivity.INTERNET));
 
             // Verifica primeiro se o dispositivo tem acesso a internet.
             if (!MainActivity.INTERNET) {
@@ -87,7 +87,7 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
                 // Começa a Buscar as redes TextWin de acordo com o tempo gerado pelo nivel de bateria.
                 while ((System.currentTimeMillis() - startTime) < tempo_cliente) {
 
-                    Log.d("D2D", "CLIENTE PESQUISANDO - " + String.valueOf(System.currentTimeMillis() - startTime));
+                   // Log.d("D2D", "CLIENTE PESQUISANDO - " + String.valueOf(System.currentTimeMillis() - startTime));
 
                     if (wifiManager == null)
                         wifiManager = (WifiManager) app.getSystemService(Context.WIFI_SERVICE);
@@ -98,12 +98,12 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
                     WifiInfo wifiInfo = wifiManager.getConnectionInfo();
                     redeAtual = (wifiInfo.getSSID()).toString();
 
-                    Log.d("D2D", redeAtual);
+                   // Log.d("D2D", redeAtual);
 
                     if (redeAtual != null) {
                         if (redeAtual.equalsIgnoreCase("<unknown ssid>") || redeAtual.equalsIgnoreCase("") || redeAtual.equalsIgnoreCase("0x")) {
 
-                            Log.d("D2D", "CLIENTE NAO ENCONTRADO WIFI - START SCAN");
+                           // Log.d("D2D", "CLIENTE NAO ENCONTRADO WIFI - START SCAN");
 
                             wifiManager.startScan();
 
@@ -225,7 +225,7 @@ public class GerenciaRedeD2D extends AsyncTask<String, String, List> {
                         TetheringManager.setWifiApEnabled(null, true);
 
 
-                        Log.d("D2DAP", "WIFI HABILITADO");
+                       // Log.d("D2DAP", "WIFI HABILITADO");
                         this.app.runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
